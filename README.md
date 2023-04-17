@@ -1,7 +1,7 @@
 # AdvTools
 
 ## Installation
-- The compiled version can be found [here](https://github.com/cmann1/DustScripts/releases/latest).
+- The compiled version can be found [here](https://github.com/cmann1/adv-tools/releases/latest).
 - Copy the `AdvTools` file from the release to `DUSTFORCE_INSTALL_DIR/content/plugins`.
 - The release also contain the `AdvTools.map` map file for an overview of everything it the plugin can do, and `advtools.ini` for a list of possible config values and how to change them.
 
