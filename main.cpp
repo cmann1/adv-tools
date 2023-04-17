@@ -1367,15 +1367,15 @@ class AdvToolScript
 		if(state_persisted)
 			return;
 		
-//		controllable@ p = controller_controllable(0);
-//		
-//		if(@p != null)
-//		{
-//			p.x(g.get_checkpoint_x(0));
-//			p.y(g.get_checkpoint_y(0));
-//		}
-//		
-//		g.save_checkpoint(0, 0);
+		//controllable@ p = controller_controllable(0);
+		//
+		//if(@p != null)
+		//{
+		//	p.x(g.get_checkpoint_x(0));
+		//	p.y(g.get_checkpoint_y(0));
+		//}
+		//
+		//g.save_checkpoint(0, 0);
 		state_persisted = true;
 	}
 	

@@ -32,11 +32,11 @@ class ExtendedTriggerTool : Tool
 		{
 			if(script.ctrl.down && script.input.key_check_pressed_vk(VK::C))
 			{
-				copy_trigger(selected_trigger);
+				copy_trigger(selected_trigger, script.alt.down);
 			}
 			if(script.ctrl.down && script.input.key_check_pressed_vk(VK::V))
 			{
-				entity@ trigger = paste_trigger(script.mouse.x, script.mouse.y);
+				entity@ trigger = paste_triggers(script.mouse.x, script.mouse.y);
 				if(@trigger != null)
 				{
 					@script.editor.selected_trigger = trigger;
@@ -85,19 +85,44 @@ class ExtendedTriggerTool : Tool
 		copy_vars(selected_trigger, new_trigger);
 		
 		clipboard.insertLast(new_trigger);
+		
+		if(clipboard.length > 1)
+		{
+			script.show_info_popup(
+				clipboard.length + ' trigger' + (clipboard.length > 1 ? 's' : '') + ' in clipboard',
+				null, PopupPosition::Below, 2);
+		}
 	}
 	
-	private entity@ paste_trigger(const float x, const float y)
+	private entity@ paste_triggers(const float x, const float y)
 	{
+		if(clipboard.length == 0)
+			return null;
+		
 		entity@ copy = null;
+		
+		// Space pasted triggers out in a square grid.
+		const float spacing = 30;
+		const int column_count = int(ceil(sqrt(clipboard.length)));
+		const int row_count = int(ceil(float(clipboard.length) / column_count));
+		const float ox = -(column_count - 1) * spacing * 0.5;
+		const float oy = -(row_count - 1) * spacing * 0.5;
+		int column = 0;
+		int row = 0;
 		
 		for(uint i = 0; i < clipboard.length; i++)
 		{
 			entity@ item = clipboard[i];
 			@copy = create_entity(item.type_name());
-			copy.set_xy(x, y);
+			copy.set_xy(x + ox + column * spacing, y + oy + row * spacing);
 			copy_vars(item, copy);
 			script.g.add_entity(copy);
+			
+			if(++column == column_count)
+			{
+				column = 0;
+				row++;
+			}
 		}
 		
 		return copy;
