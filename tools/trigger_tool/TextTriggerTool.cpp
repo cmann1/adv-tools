@@ -225,7 +225,7 @@ class TextTriggerHandler : TriggerToolHandler
 		if(state == Idle)
 		{
 			// Start editing with Enter.
-			if(@trigger != null && select_list.length == 0 && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
+			if(@trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
 			{
 				lock_input = true;
 				start_editing();
