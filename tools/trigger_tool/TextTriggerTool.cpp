@@ -703,7 +703,7 @@ class TextTriggerHandler : TriggerToolHandler
 		dummy_overlay.mouse_self = false;
 		dummy_overlay.is_snap_target = false;
 		
-		@popup = PopupOptions(script.ui, toolbar, true, PopupPosition::InsideTop, PopupTriggerType::Manual, PopupHideType::Manual);
+		@popup = PopupOptions(script.ui, toolbar, true, PopupPosition::Above, PopupTriggerType::Manual, PopupHideType::Manual);
 		popup.as_overlay = false;
 		popup.spacing = 0;
 		popup.padding = 0;
@@ -904,22 +904,27 @@ class TextTriggerHandler : TriggerToolHandler
 		y /= select_list.length;
 		
 		float x1, y1, x2, y2;
-		script.world_to_hud(x - 10, y - 10, x1, y1);
-		script.world_to_hud(x + 10, y + 10, x2, y2);
+		const float size = select_list.length == 1 ? 10 : 0;
+		script.world_to_hud(x - size, y - size, x1, y1);
+		script.world_to_hud(x + size, y + size, x2, y2);
 		
-		y1 -= toolbar._height + script.ui.style.spacing;
-		const float diff = (x2 - x1) - toolbar._width;
-		
-		if(diff < 0)
+		if(select_list.length == 1)
 		{
-			x1 += diff * 0.5;
-			x2 -= diff * 0.5;
+			y1 -= script.ui.style.spacing;
+		}
+		else
+		{
+			y1 += toolbar._height * 0.5;
 		}
 		
 		dummy_overlay.x = x1;
 		dummy_overlay.y = y1;
 		dummy_overlay.width = x2 - x1;
 		dummy_overlay.height = y2 - y1;
+		//dummy_overlay.x = x1;
+		//dummy_overlay.y = y1;
+		//dummy_overlay.width = 0;
+		//dummy_overlay.height = 0;
 		dummy_overlay.visible = true;
 		dummy_overlay.force_calculate_bounds();
 		
