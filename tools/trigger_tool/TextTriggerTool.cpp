@@ -25,6 +25,15 @@ namespace TextTriggerType
 	
 }
 
+enum TextTriggerHandlerState
+{
+	
+	Idle,
+	Rotating,
+	Scaling,
+	
+}
+
 class TextTriggerHandler : TriggerToolHandler
 {
 	
@@ -51,8 +60,10 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private float colour_swatch_open_alpha;
 	
-	private array<EditingTextTriggerData@> editing;
+	private array<EditingTextTriggerData@> edit_list;
 	private string editing_type;
+	private EditingTextTriggerData@ edit_z_trigger;
+	private EditingTextTriggerData@ edit_normal_trigger;
 	private const array<int>@ font_sizes;
 	private int selected_font_size;
 	
@@ -61,6 +72,10 @@ class TextTriggerHandler : TriggerToolHandler
 	/// Lock the text box input for one frame after pressing Enter to start editing to
 	/// prevent the Enter/text event being processed by the TextBox and overwrites the selected text.
 	private bool lock_input;
+	
+	private TextTriggerHandlerState state;
+	private float base_drag_value;
+	private float base_drag_dir_x, base_drag_dir_y;
 	
 	TextTriggerHandler(AdvToolScript@ script)
 	{
@@ -85,6 +100,7 @@ class TextTriggerHandler : TriggerToolHandler
 	void deselect() override
 	{
 		update_selected_trigger(null);
+		state = Idle;
 		
 		if(lock_input)
 		{
@@ -103,23 +119,18 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			stop_editing(true);
 		}
-		else if(@popup != null && !popup.popup_visible)
+		else if(@popup != null && !popup.popup_visible && state == Idle)
 		{
 			script.ui.show_tooltip(popup, dummy_overlay);
+		}
+		else if(@popup != null && popup.popup_visible && state != Idle)
+		{
+			script.ui.hide_tooltip(popup);
 		}
 		
 		check_triggers();
 		check_keys();
-		
-		// Multi select
-		if(editing.length > 0 && script.shift.down && script.mouse.left_press)
-		{
-			entity@ new_trigger = pick_trigger();
-			if(@new_trigger != null)
-			{
-				start_editing(new_trigger, true);
-			}
-		}
+		check_mouse();
 		
 		if(@trigger != null)
 		{
@@ -129,9 +140,9 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void draw(const float sub_frame) override
 	{
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			EditingTextTriggerData@ data = editing[i];
+			EditingTextTriggerData@ data = edit_list[i];
 			float x1, y1, x2, y2, _;
 			script.world_to_hud(data.trigger.x(), data.trigger.y(), x1, y1, false);
 			
@@ -148,6 +159,14 @@ class TextTriggerHandler : TriggerToolHandler
 				script.ui.style.draw_line(x1, y1, x2, y2, line_width, colour);
 			}
 		}
+		
+		if(state == Rotating || state == Scaling)
+		{
+			float x1, y1, x2, y2;
+			script.world_to_hud(edit_z_trigger.trigger.x(), edit_z_trigger.trigger.y(), x1, y1, false);
+			script.world_to_hud(script.mouse.x, script.mouse.y, x2, y2, false);
+			script.ui.style.draw_line(x1, y1, x2, y2, 2, (state == Rotating ? 0x9c3edf : 0xd85d45) | 0xbb000000);
+		}
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -157,21 +176,21 @@ class TextTriggerHandler : TriggerToolHandler
 	/// Removes/unselects triggers that have been deleted.
 	private void check_triggers()
 	{
-		if(editing.length > 0)
+		if(edit_list.length > 0)
 		{
 			bool changed = false;
 			
-			for(int i = int(editing.length) - 1; i >= 0; i--)
+			for(int i = int(edit_list.length) - 1; i >= 0; i--)
 			{
-				EditingTextTriggerData@ data = @editing[i];
+				EditingTextTriggerData@ data = @edit_list[i];
 				if(data.trigger.destroyed())
 				{
-					editing.removeAt(i);
+					edit_list.removeAt(i);
 					changed = true;
 				}
 			}
 			
-			if(editing.length == 0)
+			if(edit_list.length == 0)
 			{
 				stop_editing(true);
 			}
@@ -183,9 +202,10 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		if(@trigger != null && trigger.destroyed())
 		{
-			if(editing.length > 0)
+			if(edit_list.length > 0)
 			{
-				@trigger = editing[0].trigger;
+				@edit_z_trigger = edit_list[0];
+				@trigger = edit_z_trigger.trigger;
 				@script.editor.selected_trigger = trigger;
 			}
 			else
@@ -198,17 +218,17 @@ class TextTriggerHandler : TriggerToolHandler
 	/// Handle shortcut keys like Escape and Enter.
 	private void check_keys()
 	{
-		// Start editing with Enter.
-		if(@trigger != null && editing.length == 0 && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
+		if(state == Idle)
 		{
-			lock_input = true;
-			start_editing(trigger);
-		}
-		
-		// Accept/Cancel with Enter/Escape when the textbox isn't focused..
-		if(script.scene_focus)
-		{
-			if(!sub_ui_active())
+			// Start editing with Enter.
+			if(@trigger != null && edit_list.length == 0 && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
+			{
+				lock_input = true;
+				start_editing(trigger);
+			}
+			
+			// Accept/Cancel with Enter/Escape when the textbox isn't focused.
+			if(script.scene_focus && !sub_ui_active())
 			{
 				if(script.escape_press)
 				{
@@ -231,6 +251,185 @@ class TextTriggerHandler : TriggerToolHandler
 		}
 	}
 	
+	private void check_mouse()
+	{
+		bool changed = false;
+		
+		if(state == Idle)
+		{
+			// Multi select
+			if(edit_list.length > 0 && !script.alt.down && script.shift.down && script.mouse.left_press)
+			{
+				script.input.key_clear_gvb(GVB::LeftClick);
+				
+				entity@ new_trigger = pick_trigger();
+				if(@new_trigger != null)
+				{
+					start_editing(new_trigger, true);
+				}
+			}
+			
+			if(@edit_z_trigger != null)
+			{
+				if(script.alt.down && script.mouse.left_press)
+				{
+					rotate_start();
+				}
+				else if(script.alt.down && script.mouse.right_press)
+				{
+					scale_start();
+				}
+			}
+		}
+		else if(state == Rotating)
+		{
+			rotate_step();
+			script.input.key_clear_gvb(GVB::LeftClick);
+		}
+		else if(state == Scaling)
+		{
+			scale_step();
+			script.input.key_clear_gvb(GVB::RightClick);
+		}
+	}
+	
+	private void rotate_start()
+	{
+		base_drag_value = atan2(
+			script.mouse.y - edit_z_trigger.trigger.y(),
+			script.mouse.x - edit_z_trigger.trigger.x());
+		
+		for(int i = -1; i < int(edit_list.length); i++)
+		{
+			EditingTextTriggerData@ data = i >= 0 ? edit_list[i] : edit_z_trigger;
+			data.base_rotation = data.rotation;
+		}
+		
+		script.input.key_clear_gvb(GVB::LeftClick);
+		state = Rotating;
+	}
+	
+	private void rotate_step()
+	{
+		float offset = shortest_angle(
+			base_drag_value,
+			atan2(
+				script.mouse.y - edit_z_trigger.trigger.y(),
+				script.mouse.x - edit_z_trigger.trigger.x()));
+		script.snap(offset, offset, false);
+		
+		bool changed = false;
+		
+		for(int i = -1; i < int(edit_list.length); i++)
+		{
+			EditingTextTriggerData@ data = i >= 0 ? edit_list[i] : edit_z_trigger;
+			const int base_val = data.rotation;
+			data.rotation = int(normalize_degress(data.base_rotation + offset * RAD2DEG));
+			
+			if(!changed && base_val != data.rotation)
+			{
+				changed = true;
+			}
+		}
+		
+		if(changed && edit_list.length > 0)
+		{
+			ignore_events = true;
+			rotation_wheel.degrees = edit_z_trigger.rotation;
+			ignore_events = false;
+		}
+		
+		if(!script.mouse.left_down || script.escape_press)
+		{
+			rotate_end();
+		}
+	}
+	
+	private void rotate_end()
+	{
+		if(script.escape_press)
+		{
+			for(int i = -1; i < int(edit_list.length); i++)
+			{
+				EditingTextTriggerData@ data = i >= 0 ? edit_list[i] : edit_z_trigger;
+				data.rotation = int(data.base_rotation);
+			}
+		}
+		
+		state = Idle;
+	}
+	
+	private void scale_start()
+	{
+		base_drag_value = distance(
+			script.mouse.x, script.mouse.y,
+			edit_z_trigger.trigger.x(), edit_z_trigger.trigger.y());
+		base_drag_dir_x = script.mouse.x - edit_z_trigger.trigger.x();
+		base_drag_dir_y = script.mouse.y - edit_z_trigger.trigger.y();
+		
+		for(int i = -1; i < int(edit_list.length); i++)
+		{
+			EditingTextTriggerData@ data = i >= 0 ? edit_list[i] : edit_z_trigger;
+			data.base_scale = data.scale;
+		}
+		
+		script.input.key_clear_gvb(GVB::RightClick);
+		state = Scaling;
+	}
+	
+	private void scale_step()
+	{
+		const float dir = sign(dot(
+			base_drag_dir_x, base_drag_dir_y,
+			script.mouse.x - edit_z_trigger.trigger.x(), script.mouse.y - edit_z_trigger.trigger.y()));
+		const float scale =
+			distance(
+				script.mouse.x, script.mouse.y,
+				edit_z_trigger.trigger.x(), edit_z_trigger.trigger.y()) /
+			base_drag_value * dir;
+		bool changed = false;
+		
+		for(int i = -1; i < int(edit_list.length); i++)
+		{
+			EditingTextTriggerData@ data = i >= 0 ? edit_list[i] : edit_z_trigger;
+			const float base_val = data.scale;
+			data.scale = data.base_scale * scale;
+			
+			if(!changed && base_val != data.rotation)
+			{
+				changed = true;
+			}
+		}
+		
+		if(changed && edit_list.length > 0)
+		{
+			ignore_events = true;
+			scale_slider.value = edit_z_trigger.scale;
+			ignore_events = false;
+		}
+		
+		if(!script.mouse.right_down || script.escape_press)
+		{
+			scale_end();
+		}
+	}
+	
+	private void scale_end()
+	{
+		if(script.escape_press)
+		{
+			for(int i = -1; i < int(edit_list.length); i++)
+			{
+				EditingTextTriggerData@ data = i >= 0 ? edit_list[i] : edit_z_trigger;
+				data.scale = data.base_scale;
+			}
+		}
+		
+		state = Idle;
+	}
+	
+	//
+	
 	private bool sub_ui_active()
 	{
 		if(@colour_swatch == null)
@@ -243,6 +442,9 @@ class TextTriggerHandler : TriggerToolHandler
 	{
 		if(@trigger == @this.trigger)
 			return;
+		
+		@edit_z_trigger = null;
+		@edit_normal_trigger = null;
 		
 		@this.trigger = trigger;
 		trigger_type = type;
@@ -259,7 +461,7 @@ class TextTriggerHandler : TriggerToolHandler
 			update_toolbar_position();
 			script.ui.show_tooltip(popup, dummy_overlay);
 			
-			if(editing.length > 0)
+			if(edit_list.length > 0)
 			{
 				stop_editing(true, false);
 				start_editing(trigger);
@@ -272,6 +474,23 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			stop_editing(true);
 		}
+		
+		update_z_trigger();
+	}
+	
+	private void update_z_trigger()
+	{
+		if(@trigger == null)
+			return;
+		
+		if(@edit_z_trigger == null && trigger_type == TextTriggerType::ZTextProp)
+		{
+			@edit_z_trigger = EditingTextTriggerData(trigger);
+		}
+		else if(@edit_normal_trigger == null && trigger_type == TextTriggerType::Normal)
+		{
+			@edit_normal_trigger = EditingTextTriggerData(trigger);
+		}
 	}
 	
 	private void start_editing(entity@ trigger, const bool toggle=false)
@@ -279,15 +498,15 @@ class TextTriggerHandler : TriggerToolHandler
 		if(@trigger == null)
 			return;
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			EditingTextTriggerData@ data = editing[i];
+			EditingTextTriggerData@ data = edit_list[i];
 			if(trigger.is_same(data.trigger))
 			{
 				// Can't toggle the main trigger.
 				if(toggle && !trigger.is_same(this.trigger))
 				{
-					editing.removeAt(i);
+					edit_list.removeAt(i);
 					update_text_properties();
 				}
 				return;
@@ -297,7 +516,7 @@ class TextTriggerHandler : TriggerToolHandler
 		const bool is_window_created = create_window();
 		
 		EditingTextTriggerData@ data = EditingTextTriggerData(trigger);
-		editing.insertLast(data);
+		edit_list.insertLast(data);
 		
 		update_text_properties();
 		
@@ -319,13 +538,13 @@ class TextTriggerHandler : TriggerToolHandler
 	{
 		const string text = accept && @text_box != null ? text_box.text : '';
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			EditingTextTriggerData@ data = editing[i];
+			EditingTextTriggerData@ data = edit_list[i];
 			
 			if(accept)
 			{
-				if(editing.length == 1)
+				if(edit_list.length == 1)
 				{
 					data.text_var.set_string(text);
 				}
@@ -336,7 +555,10 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 		}
 		
-		editing.resize(0);
+		edit_list.resize(0);
+		@edit_normal_trigger = null;
+		@edit_z_trigger = null;
+		update_z_trigger();
 		
 		if(update_ui)
 		{
@@ -645,11 +867,11 @@ class TextTriggerHandler : TriggerToolHandler
 		// Check properties
 		// 
 		
-		EditingTextTriggerData@ data = editing[0];
+		EditingTextTriggerData@ data = edit_list[0];
 		editing_type = data.trigger_type;
 		
-		EditingTextTriggerData@ z_trigger = editing_type == TextTriggerType::ZTextProp ? data : null;
-		EditingTextTriggerData@ normal_trigger = editing_type == TextTriggerType::Normal ? data : null;
+		@edit_z_trigger = editing_type == TextTriggerType::ZTextProp ? data : null;
+		@edit_normal_trigger = editing_type == TextTriggerType::Normal ? data : null;
 		
 		bool same_text = true;
 		bool same_hidden = true;
@@ -661,10 +883,10 @@ class TextTriggerHandler : TriggerToolHandler
 		bool same_font = true;
 		bool same_font_size = true;
 		
-		for(uint i = 1; i < editing.length; i++)
+		for(uint i = 1; i < edit_list.length; i++)
 		{
-			EditingTextTriggerData@ data0 = editing[i - 1];
-			EditingTextTriggerData@ data1 = editing[i];
+			EditingTextTriggerData@ data0 = edit_list[i - 1];
+			EditingTextTriggerData@ data1 = edit_list[i];
 			const bool is_0_normal = data0.trigger_type == TextTriggerType::Normal;
 			const bool is_1_normal = data1.trigger_type == TextTriggerType::Normal;
 			const bool is_0_z_text = !is_0_normal;
@@ -672,9 +894,9 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			if(is_1_z_text)
 			{
-				if(@z_trigger == null)
+				if(@edit_z_trigger == null)
 				{
-					@z_trigger = data1;
+					@edit_z_trigger = data1;
 				}
 				
 				if(is_0_z_text)
@@ -712,9 +934,9 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			if(is_1_normal)
 			{
-				if(@normal_trigger == null)
+				if(@edit_normal_trigger == null)
 				{
-					@normal_trigger = data1;
+					@edit_normal_trigger = data1;
 				}
 				
 				if(same_hidden && is_0_normal && data0.hidden != data1.hidden)
@@ -747,15 +969,15 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		ignore_events = true;
 		
-		const string types = @z_trigger != null && @normal_trigger == null ? 'Z Text' : 'Text';
-		window.title = 'Edit ' + types + ' Trigger' + (editing.length > 1 ? 's' : '') +
-			(editing.length == 1 ? ' [' + data.trigger.id() + ']' : '');
+		const string types = @edit_z_trigger != null && @edit_normal_trigger == null ? 'Z Text' : 'Text';
+		window.title = 'Edit ' + types + ' Trigger' + (edit_list.length > 1 ? 's' : '') +
+			(edit_list.length == 1 ? ' [' + data.trigger.id() + ']' : '');
 		
-		create_visible_checkbox(@normal_trigger != null);
-		if(@normal_trigger != null)
+		create_visible_checkbox(@edit_normal_trigger != null);
+		if(@edit_normal_trigger != null)
 		{
 			visible_checkbox.state = same_hidden
-				? (!normal_trigger.hidden ? CheckboxState::On : CheckboxState::Off)
+				? (!edit_normal_trigger.hidden ? CheckboxState::On : CheckboxState::Off)
 				: CheckboxState::Indeterminate;
 		}
 		
@@ -764,26 +986,26 @@ class TextTriggerHandler : TriggerToolHandler
 		text_box.has_colour = !same_text;
 		text_box.lock_input = lock_input;
 		
-		if(@z_trigger != null)
+		if(@edit_z_trigger != null)
 		{
 			create_z_properties_container();
 			
 			const float multi_alpha = 0.5;
 			
-			colour_swatch.colour = z_trigger.colour;
+			colour_swatch.colour = edit_z_trigger.colour;
 			colour_swatch.alpha = same_colour ? 1.0 : multi_alpha;
 			
-			layer_select.set_selected_layer(same_layer ? z_trigger.layer : -1, false, true);
-			layer_select.set_selected_sub_layer(same_sub_layer ? z_trigger.sub_layer : -1, false, true);
+			layer_select.set_selected_layer(same_layer ? edit_z_trigger.layer : -1, false, true);
+			layer_select.set_selected_sub_layer(same_sub_layer ? edit_z_trigger.sub_layer : -1, false, true);
 			
-			rotation_wheel.degrees = z_trigger.rotation;
+			rotation_wheel.degrees = edit_z_trigger.rotation;
 			rotation_wheel.alpha = same_rotation ? 1.0 : multi_alpha;
 			
-			scale_slider.value = z_trigger.scale;
+			scale_slider.value = edit_z_trigger.scale;
 			scale_slider.alpha = same_scale ? 1.0 : multi_alpha;
 			
-			selected_font_size = z_trigger.font_size;
-			font_select.selected_value = z_trigger.font;
+			selected_font_size = edit_z_trigger.font_size;
+			font_select.selected_value = edit_z_trigger.font;
 			font_select.alpha = same_font ? 1.0 : multi_alpha;
 			font_size_select.alpha = same_font_size ? 1.0 : multi_alpha;
 			font_select.allow_reselect = !same_font;
@@ -896,9 +1118,9 @@ class TextTriggerHandler : TriggerToolHandler
 			return;
 		
 		const string text = text_box.text;
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			EditingTextTriggerData@ data = editing[i];
+			EditingTextTriggerData@ data = edit_list[i];
 			data.text = text;
 		}
 		
@@ -915,9 +1137,9 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			editing[i].hidden = !visible_checkbox.checked;
+			edit_list[i].hidden = !visible_checkbox.checked;
 		}
 	}
 	
@@ -939,9 +1161,9 @@ class TextTriggerHandler : TriggerToolHandler
 			colour_swatch_open_alpha = colour_swatch.alpha;
 		}
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			editing[i].set_colour(colour_swatch.colour, mode);
+			edit_list[i].set_colour(colour_swatch.colour, mode);
 		}
 		
 		if(!opened)
@@ -961,9 +1183,9 @@ class TextTriggerHandler : TriggerToolHandler
 		const bool cancelled = event.type == EventType::CANCEL;
 		const DataSetMode mode = get_event_mode(event, opened, cancelled);
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			EditingTextTriggerData@ data = editing[i];
+			EditingTextTriggerData@ data = edit_list[i];
 			
 			if(opened || layer_button.layer_changed)
 			{
@@ -982,9 +1204,9 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			editing[i].rotation = int(rotation_wheel.degrees);
+			edit_list[i].rotation = int(rotation_wheel.degrees);
 		}
 		
 		rotation_wheel.alpha = 1.0;
@@ -995,9 +1217,9 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			editing[i].scale = scale_slider.value;
+			edit_list[i].scale = scale_slider.value;
 		}
 		
 		scale_slider.alpha = 1.0;
@@ -1008,9 +1230,9 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			editing[i].font = font_select.selected_value;
+			edit_list[i].font = font_select.selected_value;
 		}
 		
 		ignore_next_font_size_update = true;
@@ -1029,9 +1251,9 @@ class TextTriggerHandler : TriggerToolHandler
 			return;
 		
 		const int new_size = font_sizes[font_size_select.selected_index];
-		for(uint i = 0; i < editing.length; i++)
+		for(uint i = 0; i < edit_list.length; i++)
 		{
-			editing[i].font_size = new_size;
+			edit_list[i].font_size = new_size;
 		}
 		
 		if(!ignore_next_font_size_update)

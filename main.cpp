@@ -1030,9 +1030,9 @@ class AdvToolScript
 		}
 	}
 	
-	void snap(const float angle, float &out out_angle)
+	void snap(const float angle, float &out out_angle, const bool alt_small=true)
 	{
-		const float snap = get_snap_angle() * DEG2RAD;
+		const float snap = get_snap_angle(alt_small) * DEG2RAD;
 		
 		if(snap != 0)
 		{
@@ -1058,15 +1058,18 @@ class AdvToolScript
 		return 0;
 	}
 	
-	float get_snap_angle()
+	float get_snap_angle(const bool alt_small=true)
 	{
+		if(!alt_small && shift.down && ctrl.down)
+			return 5;
+		
 		if(shift.down)
 			return 45;
 		
 		if(ctrl.down)
 			return 22.5;
 		
-		if(alt.down)
+		if(alt_small && alt.down)
 			return 5;
 		
 		return 0;

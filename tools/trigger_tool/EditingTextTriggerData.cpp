@@ -8,6 +8,9 @@ class EditingTextTriggerData
 	string trigger_type;
 	bool is_z_trigger;
 	
+	float base_scale;
+	float base_rotation;
+	
 	varstruct@ vars;
 	varvalue@ text_var;
 	varvalue@ hide_var;
@@ -32,10 +35,23 @@ class EditingTextTriggerData
 	private int _stored_layer;
 	private int _stored_sub_layer;
 	
+	EditingTextTriggerData() {}
+	
 	EditingTextTriggerData(entity@ trigger)
 	{
-		@this.trigger = trigger;
-		trigger_type = trigger.type_name();
+		update(trigger);
+	}
+	
+	EditingTextTriggerData@ update(entity@ trigger=null)
+	{
+		if(@trigger != null)
+		{
+			@this.trigger = trigger;
+			trigger_type = trigger.type_name();
+		}
+		
+		if(@trigger == null)
+			return this;
 		
 		@restore_data = create_entity(trigger_type);
 		copy_vars(trigger, restore_data);
@@ -63,12 +79,17 @@ class EditingTextTriggerData
 			@rotation_var = vars.get_var('text_rotation');
 			_rotation = rotation_var.get_int32();
 			
+			@scale_var = vars.get_var('text_scale');
+			_scale = scale_var.get_float();
+			
 			@font_var = vars.get_var('font');
 			_font = font_var.get_string();
 			
 			@font_size_var = vars.get_var('font_size');
 			_font_size = font_size_var.get_int32();
 		}
+		
+		return this;
 	}
 	
 	bool hidden
