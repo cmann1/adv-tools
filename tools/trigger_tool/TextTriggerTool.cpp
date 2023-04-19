@@ -49,7 +49,7 @@ class TextTriggerHandler : TriggerToolHandler
 	private Select@ font_select;
 	private Select@ font_size_select;
 	
-	private float colour_switch_open_alpha;
+	private float colour_swatch_open_alpha;
 	
 	private array<EditingTextTriggerData@> editing;
 	private string editing_type;
@@ -519,7 +519,7 @@ class TextTriggerHandler : TriggerToolHandler
 		colour_swatch.height = rotation_wheel.height;
 		@colour_swatch.tooltip = PopupOptions(ui, 'Colour');
 		colour_swatch.change.on(EventCallback(on_colour_change));
-		colour_swatch.activate.on(EventCallback(on_colour_activate));
+		colour_swatch.activate.on(EventCallback(on_colour_change));
 		z_properties_container.add_child(colour_swatch);
 		
 		// Layer button
@@ -656,6 +656,8 @@ class TextTriggerHandler : TriggerToolHandler
 		bool same_colour = true;
 		bool same_layer = true;
 		bool same_sub_layer = true;
+		bool same_rotation = true;
+		bool same_scale = true;
 		
 		for(uint i = 1; i < editing.length; i++)
 		{
@@ -686,6 +688,14 @@ class TextTriggerHandler : TriggerToolHandler
 					if(same_sub_layer && data0.sub_layer != data1.sub_layer)
 					{
 						same_sub_layer = false;
+					}
+					if(same_rotation && data0.rotation != data1.rotation)
+					{
+						same_rotation = false;
+					}
+					if(same_scale && data0.scale != data1.scale)
+					{
+						same_scale = false;
 					}
 				}
 			}
@@ -756,6 +766,12 @@ class TextTriggerHandler : TriggerToolHandler
 			layer_select.set_selected_layer(same_layer ? z_trigger.layer : -1, false, true);
 			layer_select.set_selected_sub_layer(same_sub_layer ? z_trigger.sub_layer : -1, false, true);
 			
+			rotation_wheel.degrees = z_trigger.rotation;
+			rotation_wheel.alpha = same_rotation ? 1.0 : multi_alpha;
+			
+			scale_slider.value = z_trigger.scale;
+			scale_slider.alpha = same_scale ? 1.0 : multi_alpha;
+			
 			z_properties_container.visible = true;
 		}
 		else if(@z_properties_container != null)
@@ -768,11 +784,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private void update_z_properties()
 	{
-		//layer_select.set_selected_layer(vars.get_var('layer').get_int32(), false);
-		//layer_select.set_selected_sub_layer(vars.get_var('sublayer').get_int32(), false);
-		//rotation_wheel.degrees = float(vars.get_var('text_rotation').get_int32());
 		//scale_slider.value = vars.get_var('text_scale').get_float();
-		//
 		//selected_font_size = vars.get_var('font_size').get_int32();
 		//font_select.selected_value = vars.get_var('font').get_string();
 		//update_font_sizes();
@@ -798,6 +810,13 @@ class TextTriggerHandler : TriggerToolHandler
 				window.remove_title_before(visible_checkbox);
 			}
 		}
+	}
+	
+	private DataSetMode get_event_mode(EventInfo@ event, const bool opened, const bool cancelled) const
+	{
+		return opened
+			? DataSetMode::Store
+			: cancelled ? DataSetMode::Restore : DataSetMode::Set;
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -860,66 +879,62 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < editing.length; i++)
 		{
-			EditingTextTriggerData@ data = editing[i];
-			if(!data.is_z_trigger)
-			{
-				data.hidden = !visible_checkbox.checked;
-			}
+			editing[i].hidden = !visible_checkbox.checked;
 		}
 	}
 	
 	// Z Properties
 	
-	void on_colour_activate(EventInfo@ event)
-	{
-		if(ignore_events)
-			return;
-		
-		if(event.type == EventType::OPEN)
-		{
-			colour_switch_open_alpha = colour_swatch.alpha;
-			for(uint i = 0; i < editing.length; i++)
-			{
-				editing[i].set_colour(0, DataSetMode::Store);
-			}
-		}
-	}
-	
 	void on_colour_change(EventInfo@ event)
 	{
 		if(ignore_events)
 			return;
-		if(event.type == EventType::ACCEPT)
+		if(event.type == EventType::ACCEPT || event.type == EventType::CLOSE)
 			return;
 		
+		const bool opened = event.type == EventType::OPEN;
 		const bool cancelled = event.type == EventType::CANCEL;
+		const DataSetMode mode = get_event_mode(event, opened, cancelled);
+		
+		if(opened)
+		{
+			colour_swatch_open_alpha = colour_swatch.alpha;
+		}
 		
 		for(uint i = 0; i < editing.length; i++)
 		{
-			editing[i].set_colour(colour_swatch.colour, cancelled ? DataSetMode::Restore : DataSetMode::Set);
+			editing[i].set_colour(colour_swatch.colour, mode);
 		}
 		
-		colour_swatch.alpha = cancelled ? colour_switch_open_alpha : 1.0;
+		if(!opened)
+		{
+			colour_swatch.alpha = cancelled ? colour_swatch_open_alpha : 1.0;
+		}
 	}
 	
 	void on_layer_select(EventInfo@ event)
 	{
 		if(ignore_events)
 			return;
+		if(event.type == EventType::ACCEPT)
+			return;
+		
+		const bool opened = event.type == EventType::OPEN;
+		const bool cancelled = event.type == EventType::CANCEL;
+		const DataSetMode mode = get_event_mode(event, opened, cancelled);
 		
 		for(uint i = 0; i < editing.length; i++)
 		{
 			EditingTextTriggerData@ data = editing[i];
-			if(data.is_z_trigger)
+			
+			if(opened || layer_button.layer_changed)
 			{
-				if(layer_button.layer_changed)
-				{
-					data.layer = layer_select.selected_layer;
-				}
-				if(layer_button.sub_layer_changed)
-				{
-					data.sub_layer = layer_select.selected_sub_layer;
-				}
+				data.set_layer(layer_select.selected_layer, mode);
+			}
+			
+			if(opened || layer_button.sub_layer_changed)
+			{
+				data.set_sub_layer(layer_select.selected_sub_layer, mode);
 			}
 		}
 	}
@@ -929,7 +944,12 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		//vars.get_var('text_rotation').set_int32(int(rotation_wheel.degrees));
+		for(uint i = 0; i < editing.length; i++)
+		{
+			editing[i].rotation = int(rotation_wheel.degrees);
+		}
+		
+		rotation_wheel.alpha = 1.0;
 	}
 	
 	void on_scale_change(EventInfo@ event)
@@ -937,7 +957,12 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		//vars.get_var('text_scale').set_float(scale_slider.value);
+		for(uint i = 0; i < editing.length; i++)
+		{
+			editing[i].scale = scale_slider.value;
+		}
+		
+		scale_slider.alpha = 1.0;
 	}
 	
 	void on_font_change(EventInfo@ event)

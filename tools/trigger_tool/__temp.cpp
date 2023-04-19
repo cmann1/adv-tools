@@ -11,19 +11,12 @@ class TextTool : Tool
 	
 	private void update_properties()
 	{
-		ignore_events = true;
-		
-		colour_swatch.colour = vars.get_var('colour').get_int32();
-		layer_select.set_selected_layer(vars.get_var('layer').get_int32(), false);
-		layer_select.set_selected_sub_layer(vars.get_var('sublayer').get_int32(), false);
 		rotation_wheel.degrees = float(vars.get_var('text_rotation').get_int32());
 		scale_slider.value = vars.get_var('text_scale').get_float();
 		
 		selected_font_size = vars.get_var('font_size').get_int32();
 		font_select.selected_value = vars.get_var('font').get_string();
 		update_font_sizes();
-		
-		ignore_events = false;
 	}
 	
 	private void update_font_sizes()
@@ -53,23 +46,6 @@ class TextTool : Tool
 	// //////////////////////////////////////////////////////////
 	// Events
 	// //////////////////////////////////////////////////////////
-	
-	void on_colour_change(EventInfo@ event)
-	{
-		if(ignore_events)
-			return;
-		
-		vars.get_var('colour').set_int32(colour_swatch.colour);
-	}
-	
-	void on_layer_select(EventInfo@ event)
-	{
-		if(ignore_events)
-			return;
-		
-		vars.get_var('layer').set_int32(layer_select.get_selected_layer());
-		vars.get_var('sublayer').set_int32(layer_select.get_selected_sub_layer());
-	}
 	
 	void on_rotation_change(EventInfo@ event)
 	{

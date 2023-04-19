@@ -14,13 +14,19 @@ class EditingTextTriggerData
 	varvalue@ colour_var;
 	varvalue@ layer_var;
 	varvalue@ sub_layer_var;
+	varvalue@ rotation_var;
+	varvalue@ scale_var;
 	
 	private string _text;
 	private uint _colour;
 	private int _layer;
 	private int _sub_layer;
+	private int _rotation;
+	private float _scale;
 	
 	private uint _stored_colour;
+	private int _stored_layer;
+	private int _stored_sub_layer;
 	
 	EditingTextTriggerData(entity@ trigger)
 	{
@@ -49,13 +55,25 @@ class EditingTextTriggerData
 			
 			@sub_layer_var = vars.get_var('sublayer');
 			_sub_layer = uint(sub_layer_var.get_int32());
+			
+			@rotation_var = vars.get_var('text_rotation');
+			_rotation = rotation_var.get_int32();
+			
+			@scale_var = vars.get_var('text_scale');
+			_scale = scale_var.get_float();
 		}
 	}
 	
 	bool hidden
 	{
-		get { return @hide_var != null ? hide_var.get_bool() : false; }
-		set { if(@hide_var != null) hide_var.set_bool(value); }
+		get { return !is_z_trigger ? hide_var.get_bool() : false; }
+		set
+		{
+			if(is_z_trigger)
+				return;
+			
+			hide_var.set_bool(value);
+		}
 	}
 	
 	string text
@@ -95,28 +113,73 @@ class EditingTextTriggerData
 	int layer
 	{
 		get const { return _layer; }
-		set
+		set { set_layer(value, DataSetMode::Set); }
+	}
+	void set_layer(int layer, const DataSetMode mode)
+	{
+		if(!is_z_trigger)
+			return;
+		
+		if(mode == DataSetMode::Store)
 		{
-			if(_layer == value)
-				return;
-			
-			_layer = value;
-			layer_var.set_int32(value);
+			_stored_layer = _layer;
+		}
+		else
+		{
+			_layer = mode == DataSetMode::Restore ? _stored_layer : layer;
+			layer_var.set_int32(_layer);
 		}
 	}
 	
 	int sub_layer
 	{
 		get const { return _sub_layer; }
-		set
+		set { set_sub_layer(value, DataSetMode::Set); }
+	}
+	void set_sub_layer(int sub_layer, const DataSetMode mode)
+	{
+		if(!is_z_trigger)
+			return;
+		
+		if(mode == DataSetMode::Store)
 		{
-			if(_sub_layer == value)
-				return;
-			
-			_sub_layer = value;
-			sub_layer_var.set_int32(value);
+			_stored_sub_layer = _sub_layer;
+		}
+		else
+		{
+			_sub_layer = mode == DataSetMode::Restore ? _stored_sub_layer : sub_layer;
+			sub_layer_var.set_int32(_sub_layer);
 		}
 	}
 	
+	int rotation
+	{
+		get const { return _rotation; }
+		set
+		{
+			if(!is_z_trigger)
+				return;
+			if(_rotation == value)
+				return;
+			
+			_rotation = value;
+			rotation_var.set_int32(value);
+		}
+	}
+	
+	float scale
+	{
+		get const { return _scale; }
+		set
+		{
+			if(!is_z_trigger)
+				return;
+			if(_scale == value)
+				return;
+			
+			_scale = value;
+			scale_var.set_float(value);
+		}
+	}
 	
 }
