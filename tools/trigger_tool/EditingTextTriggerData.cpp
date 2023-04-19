@@ -22,6 +22,7 @@ class EditingTextTriggerData
 	varvalue@ font_var;
 	varvalue@ font_size_var;
 	
+	private bool _hidden;
 	private string _text;
 	private uint _colour;
 	private int _layer;
@@ -35,31 +36,15 @@ class EditingTextTriggerData
 	private int _stored_layer;
 	private int _stored_sub_layer;
 	
-	EditingTextTriggerData() {}
-	
 	EditingTextTriggerData(entity@ trigger)
 	{
-		update(trigger);
-	}
-	
-	EditingTextTriggerData@ update(entity@ trigger=null)
-	{
-		if(@trigger != null)
-		{
-			@this.trigger = trigger;
-			trigger_type = trigger.type_name();
-		}
+		@this.trigger = trigger;
+		trigger_type = trigger.type_name();
 		
-		if(@trigger == null)
-			return this;
-		
-		@restore_data = create_entity(trigger_type);
-		copy_vars(trigger, restore_data);
 		is_z_trigger = trigger_type == TextTriggerType::ZTextProp;
 		
 		@vars = trigger.vars();
 		@text_var = vars.get_var(is_z_trigger ? 'text' : 'text_string');
-		text = text_var.get_string();
 		
 		if(!is_z_trigger)
 		{
@@ -68,28 +53,57 @@ class EditingTextTriggerData
 		else
 		{
 			@colour_var = vars.get_var('colour');
-			_colour = uint(colour_var.get_int32());
-			
 			@layer_var = vars.get_var('layer');
-			_layer = uint(layer_var.get_int32());
-			
 			@sub_layer_var = vars.get_var('sublayer');
-			_sub_layer = uint(sub_layer_var.get_int32());
-			
 			@rotation_var = vars.get_var('text_rotation');
-			_rotation = rotation_var.get_int32();
-			
 			@scale_var = vars.get_var('text_scale');
-			_scale = scale_var.get_float();
-			
 			@font_var = vars.get_var('font');
-			_font = font_var.get_string();
-			
 			@font_size_var = vars.get_var('font_size');
-			_font_size = font_size_var.get_int32();
 		}
 		
-		return this;
+		read_vars();
+	}
+	
+	private void read_vars()
+	{
+		text = text_var.get_string();
+		
+		if(!is_z_trigger)
+		{
+			_hidden = hide_var.get_bool();
+		}
+		else
+		{
+			_colour = uint(colour_var.get_int32());
+			_layer = uint(layer_var.get_int32());
+			_sub_layer = uint(sub_layer_var.get_int32());
+			_rotation = rotation_var.get_int32();
+			_scale = scale_var.get_float();
+			_font = font_var.get_string();
+			_font_size = font_size_var.get_int32();
+		}
+	}
+	
+	void store_all()
+	{
+		if(@trigger == null)
+			return;
+		
+		if(@restore_data == null)
+		{
+			@restore_data = create_entity(trigger_type);
+		}
+		
+		copy_vars(trigger, restore_data);
+	}
+	
+	void restor_all()
+	{
+		if(@restore_data == null)
+			return;
+		
+		copy_vars(restore_data, trigger);
+		read_vars();
 	}
 	
 	bool hidden

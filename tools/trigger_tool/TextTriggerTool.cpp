@@ -606,6 +606,11 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		const bool is_window_created = create_window();
 		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			select_list[i].store_all();
+		}
+		
 		update_text_properties();
 		
 		if(is_window_created)
@@ -635,7 +640,7 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			if(!accept)
 			{
-				copy_vars(data.restore_data, data.trigger);
+				data.restor_all();
 			}
 		}
 		
