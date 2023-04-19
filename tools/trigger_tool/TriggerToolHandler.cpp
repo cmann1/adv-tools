@@ -2,10 +2,12 @@ class TriggerToolHandler
 {
 	
 	AdvToolScript@ script;
+	ExtendedTriggerTool@ tool;
 	
-	TriggerToolHandler(AdvToolScript@ script)
+	TriggerToolHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
 		@this.script = script;
+		@this.tool = tool;
 	}
 	
 	void build_sprites(message@ msg) { }

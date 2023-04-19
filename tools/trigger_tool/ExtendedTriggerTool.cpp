@@ -18,7 +18,7 @@ class ExtendedTriggerTool : Tool
 		
 		init_shortcut_key(VK::T);
 		
-		add_trigger_handler(TextTriggerHandler(script));
+		add_trigger_handler(TextTriggerHandler(script, this));
 	}
 	
 	void create(ToolGroup@ group) override
@@ -104,7 +104,7 @@ class ExtendedTriggerTool : Tool
 	
 	protected void draw_impl(const float sub_frame)
 	{
-		const uint hidden_clr =0xaa6666ff;
+		const uint hidden_clr =0x886666ff;
 		for(uint i = 0; i < hidden_text_triggers.length; i++)
 		{
 			entity@ e = hidden_text_triggers[i];
@@ -126,6 +126,20 @@ class ExtendedTriggerTool : Tool
 	// //////////////////////////////////////////////////////////
 	// Methods
 	// //////////////////////////////////////////////////////////
+	
+	void add_hidden_trigger(entity@ trigger)
+	{
+		if(@trigger == null)
+			return;
+		
+		for(uint i = 0; i < hidden_text_triggers.length; i++)
+		{
+			if(hidden_text_triggers[i].is_same(trigger))
+				return;
+		}
+		
+		hidden_text_triggers.insertLast(trigger);
+	}
 	
 	private void check_hidden_triggers()
 	{

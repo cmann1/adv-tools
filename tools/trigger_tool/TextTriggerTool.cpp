@@ -80,9 +80,9 @@ class TextTriggerHandler : TriggerToolHandler
 	private float base_drag_value;
 	private float base_drag_dir_x, base_drag_dir_y;
 	
-	TextTriggerHandler(AdvToolScript@ script)
+	TextTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
-		super(script);
+		super(script, tool);
 	}
 	
 	void build_sprites(message@ msg) override
@@ -141,6 +141,16 @@ class TextTriggerHandler : TriggerToolHandler
 		check_triggers();
 		check_keys();
 		check_mouse();
+		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			EditingTextTriggerData@ data = select_list[i];
+			
+			if(!data.is_z_trigger && data.hidden)
+			{
+				tool.add_hidden_trigger(data.trigger);
+			}
+		}
 		
 		if(@popup != null && popup.popup_visible)
 		{
