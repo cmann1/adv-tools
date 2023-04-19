@@ -454,6 +454,21 @@ class TextTriggerHandler : TriggerToolHandler
 		if(@trigger == @this.trigger)
 			return;
 		
+		if(@trigger != null)
+		{
+			for(uint i = 0; i < select_list.length; i++)
+			{
+				EditingTextTriggerData@ data = select_list[i];
+				if(!data.trigger.is_same(trigger))
+					continue;
+				
+				select_list.removeAt(i);
+				select_list.insertAt(0, data);
+				reset_primary_trigger();
+				return;
+			}
+		}
+		
 		select_list.resize(0);
 		@select_z_trigger = null;
 		@select_normal_trigger = null;
@@ -538,6 +553,8 @@ class TextTriggerHandler : TriggerToolHandler
 	 *	-1 - Removed from selection. */
 	private int try_update_selection(entity@ new_trigger)
 	{
+		skip_next_selection = false;
+		
 		if(@new_trigger == null)
 			return 0;
 		if(select_list.length == 1 && new_trigger.is_same(select_list[0].trigger))
@@ -553,13 +570,7 @@ class TextTriggerHandler : TriggerToolHandler
 				// Update main selected trigger.
 				if(new_trigger.is_same(trigger))
 				{
-					@data = select_list[0];
-					@trigger = data.trigger;
-					trigger_type = data.trigger_type;
-					update_z_trigger(true);
-					
-					skip_next_selection = true;
-					@script.editor.selected_trigger = trigger;
+					reset_primary_trigger();
 				}
 				
 				return -1;
@@ -569,6 +580,20 @@ class TextTriggerHandler : TriggerToolHandler
 		EditingTextTriggerData@ data = EditingTextTriggerData(new_trigger);
 		select_list.insertLast(data);
 		return 1;
+	}
+	
+	private void reset_primary_trigger()
+	{
+		if(select_list.length == 0)
+			return;
+		
+		EditingTextTriggerData@ data = select_list[0];
+		@trigger = data.trigger;
+		trigger_type = data.trigger_type;
+		update_z_trigger(true);
+		
+		skip_next_selection = true;
+		@script.editor.selected_trigger = trigger;
 	}
 	
 	private void start_editing(entity@ trigger=null)
