@@ -20,9 +20,7 @@ const string EMBED_spr_edgebrush_edge_facing_external	= EDGE_BRUSH_SPRITES_BASE 
 const string EMBED_spr_edgebrush_edge_facing_internal	= EDGE_BRUSH_SPRITES_BASE + 'edgebrush_edge_facing_internal.png';
 const string EMBED_spr_edgebrush_edge_facing_both		= EDGE_BRUSH_SPRITES_BASE + 'edgebrush_edge_facing_both.png';
 const string EMBED_spr_edgebrush_update_neighbour		= EDGE_BRUSH_SPRITES_BASE + 'edgebrush_update_neighbour.png';
-const string EMBED_spr_edgebrush_render_mode_always		= EDGE_BRUSH_SPRITES_BASE + 'edgebrush_render_mode_always.png';
 const string EMBED_spr_edgebrush_render_mode_draw		= EDGE_BRUSH_SPRITES_BASE + 'edgebrush_render_mode_draw.png';
-const string EMBED_spr_edgebrush_render_mode_never		= EDGE_BRUSH_SPRITES_BASE + 'edgebrush_render_mode_never.png';
 
 class EdgeBrushToolbar
 {
@@ -64,9 +62,7 @@ class EdgeBrushToolbar
 		build_sprite(msg, 'edgebrush_edge_facing_internal');
 		build_sprite(msg, 'edgebrush_edge_facing_both');
 		build_sprite(msg, 'edgebrush_update_neighbour');
-		build_sprite(msg, 'edgebrush_render_mode_always');
 		build_sprite(msg, 'edgebrush_render_mode_draw');
-		build_sprite(msg, 'edgebrush_render_mode_never');
 		
 	}
 	
@@ -270,11 +266,11 @@ class EdgeBrushToolbar
 		// Render mode button
 		//{
 			@render_mode_btn = MultiButton(ui);
-			render_mode_btn.add('external', SPRITE_SET, 'edgebrush_render_mode_always', Settings::IconSize, Settings::IconSize);
+			render_mode_btn.add('external', SPRITE_SET, 'icon_visible', Settings::IconSize, Settings::IconSize);
 			render_mode_btn.set_tooltip('Render Mode: Always');
 			render_mode_btn.add('internal', SPRITE_SET, 'edgebrush_render_mode_draw', Settings::IconSize, Settings::IconSize);
 			render_mode_btn.set_tooltip('Render Mode: Active');
-			render_mode_btn.add('both', SPRITE_SET, 'edgebrush_render_mode_never', Settings::IconSize, Settings::IconSize);
+			render_mode_btn.add('both', SPRITE_SET, 'icon_invisible', Settings::IconSize, Settings::IconSize);
 			render_mode_btn.set_tooltip('Render Mode: Never');
 			render_mode_btn.name = 'render_mode';
 			render_mode_btn.fit_to_contents();

@@ -8,16 +8,34 @@ class ExtendedTriggerTool : Tool
 	
 	array<entity@> clipboard;
 	
+	TriggerToolHandler@ active_trigger_handler;
+	array<TriggerToolHandler@> trigger_handlers;
+	
 	ExtendedTriggerTool(AdvToolScript@ script)
 	{
 		super(script, 'Triggers');
 		
 		init_shortcut_key(VK::T);
+		
+		add_trigger_handler(TextTriggerHandler(script));
 	}
 	
 	void create(ToolGroup@ group) override
 	{
 		set_icon('editor', 'triggersicon');
+	}
+	
+	void build_sprites(message@ msg) override
+	{
+		for(uint i = 0; i < trigger_handlers.length; i++)
+		{
+			trigger_handlers[i].build_sprites(msg);
+		}
+	}
+	
+	private void add_trigger_handler(TriggerToolHandler@ handler)
+	{
+		trigger_handlers.insertLast(handler);
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -51,18 +69,44 @@ class ExtendedTriggerTool : Tool
 				}
 			}
 		}
+		
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.step();
+		}
+	}
+	
+	protected void draw_impl(const float sub_frame)
+	{
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.draw(sub_frame);
+		}
 	}
 	
 	// //////////////////////////////////////////////////////////
 	// Tool Callbacks
 	// //////////////////////////////////////////////////////////
 	
-	protected void on_deselect_impl() override
+	protected void on_editor_loaded_impl() override
 	{
-		update_selected_trigger(null);
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.editor_loaded();
+		}
 	}
 	
 	protected void on_editor_unloaded_impl() override
+	{
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.editor_unloaded();
+		}
+		
+		update_selected_trigger(null);
+	}
+	
+	protected void on_deselect_impl() override
 	{
 		update_selected_trigger(null);
 	}
@@ -138,6 +182,45 @@ class ExtendedTriggerTool : Tool
 		
 		@selected_trigger = trigger;
 		selected_type = @selected_trigger != null ? selected_trigger.type_name() : '';
+		
+		TriggerToolHandler@ new_handler = null;
+		
+		for(uint i = 0; i < trigger_handlers.length; i++)
+		{
+			TriggerToolHandler@ handler = trigger_handlers[i];
+			if(handler.should_handle(selected_trigger, selected_type))
+			{
+				@new_handler = handler;
+				break;
+			}
+		}
+		
+		if(!update_trigger_handler(new_handler) && @active_trigger_handler != null)
+		{
+			active_trigger_handler.select(selected_trigger, selected_type);
+		}
+	}
+	
+	// Returns true if the new handler's select method was called.
+	private bool update_trigger_handler(TriggerToolHandler@ new_handler)
+	{
+		if(@new_handler == @active_trigger_handler)
+			return false;
+		
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.deselect();
+		}
+		
+		@active_trigger_handler = new_handler;
+		
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.select(selected_trigger, selected_type);
+			return true;
+		}
+		
+		return @active_trigger_handler == null;
 	}
 	
 }

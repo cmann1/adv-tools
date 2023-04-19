@@ -22,6 +22,8 @@
 #include '../../lib/ui3/popups/PopupOptions.cpp';
 #include '../../lib/ui3/window_manager/WindowManager.cpp';
 
+#include '../../lib/debug/Debug.cpp';
+
 #include 'handles/Handles.cpp';
 #include 'misc/DragHandleType.cpp';
 #include 'misc/EditorKey.cpp';
@@ -43,9 +45,11 @@
 #include 'tools/ParticleEditorTool.cpp';
 #include 'ToolGroup.cpp';
 
-const string SCRIPT_BASE			= 'ed/adv_tools/';
-const string SPRITES_BASE			= SCRIPT_BASE + 'sprites/';
-const string EMBED_spr_icon_edit	= SPRITES_BASE + 'icon_edit.png';
+const string SCRIPT_BASE				= 'ed/adv_tools/';
+const string SPRITES_BASE				= SCRIPT_BASE + 'sprites/';
+const string EMBED_spr_icon_edit		= SPRITES_BASE + 'icon_edit.png';
+const string EMBED_spr_icon_visible		= SPRITES_BASE + 'icon_visible.png';
+const string EMBED_spr_icon_invisible	= SPRITES_BASE + 'icon_invisible.png';
 
 const bool AS_EDITOR_PLUGIN = true;
 const string SPRITE_SET = AS_EDITOR_PLUGIN ? 'plugin' : 'script';
@@ -71,6 +75,7 @@ class AdvToolScript
 	bool mouse_in_gui;
 	bool mouse_in_scene;
 	bool scene_focus;
+	bool in_editor = true;
 	EditorKey ctrl = EditorKey(input, GVB::Control);
 	EditorKey shift = EditorKey(input, GVB::Shift);
 	EditorKey alt = EditorKey(input, GVB::Alt);
@@ -182,10 +187,20 @@ class AdvToolScript
 		editor.hide_gui(false);
 		do_load_config(false);
 		create_tools();
+		
+		//
+		
+		@ui.debug = debug;
+		debug.text_font = font::ENVY_BOLD;
+		debug.text_size = 20;
+		debug.text_align_y = 1;
+		debug.text_display_newset_first = false;
 	}
   
 	void editor_loaded()
 	{
+		in_editor = true;
+		
 		if(@selected_tool != null)
 		{
 			selected_tool.on_editor_loaded();
@@ -202,6 +217,8 @@ class AdvToolScript
 
 	void editor_unloaded()
 	{
+		in_editor = false;
+		
 		if(@selected_tool != null)
 		{
 			selected_tool.on_editor_unloaded();
@@ -217,6 +234,8 @@ class AdvToolScript
 	void build_sprites(message@ msg)
 	{
 		build_sprite(@msg, 'icon_edit', 0, 0);
+		build_sprite(@msg, 'icon_visible', 0, 0);
+		build_sprite(@msg, 'icon_invisible', 0, 0);
 		
 		for(uint i = 0; i < tools.length(); i++)
 		{
@@ -423,7 +442,7 @@ class AdvToolScript
 		add_tool('Tiles',		EdgeBrushTool(this));
 		add_tool('Props',		PropTool(this));
 		add_tool('Props',		PropLineTool(this));
-		add_tool('Triggers',	TextTool(this));
+		//add_tool('Triggers',	TextTool(this));
 		
 		sort_shortcut_tools();
 	}
@@ -1183,6 +1202,39 @@ class AdvToolScript
 	{
 		hide_layers_gui = hidden;
 		editor.hide_layers_gui(hide_layers_gui || hide_gui_user);
+	}
+	
+	/// Returns true if the given global virtual button is down and then clears it
+	bool consume_gvb(const int gvb)
+	{
+		if(input.key_check_gvb(gvb))
+		{
+			input.key_clear_gvb(gvb);
+			return true;
+		}
+		
+		return false;
+	}
+	
+	/// Returns true if the given global virtual button is pressed and then clears it
+	bool consume_pressed_gvb(const int gvb)
+	{
+		if(input.key_check_pressed_gvb(gvb))
+		{
+			if(return_press && gvb == GVB::Return)
+			{
+				return_press = false;
+			}
+			else if(escape_press && gvb == GVB::Escape)
+			{
+				escape_press = false;
+			}
+			
+			input.key_clear_gvb(gvb);
+			return true;
+		}
+		
+		return false;
 	}
 	
 	// //////////////////////////////////////////////////////////
