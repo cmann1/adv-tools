@@ -14,8 +14,6 @@
 #include 'EditingTextTriggerData.cpp';
 #include 'TriggerToolHandler.cpp';
 
-#include '__temp2.cpp';
-
 namespace TextTriggerType
 {
 	
@@ -658,6 +656,8 @@ class TextTriggerHandler : TriggerToolHandler
 		bool same_sub_layer = true;
 		bool same_rotation = true;
 		bool same_scale = true;
+		bool same_font = true;
+		bool same_font_size = true;
 		
 		for(uint i = 1; i < editing.length; i++)
 		{
@@ -696,6 +696,14 @@ class TextTriggerHandler : TriggerToolHandler
 					if(same_scale && data0.scale != data1.scale)
 					{
 						same_scale = false;
+					}
+					if(same_font && data0.font != data1.font)
+					{
+						same_font = false;
+					}
+					if(same_font_size && data0.font_size != data1.font_size)
+					{
+						same_font_size = false;
 					}
 				}
 			}
@@ -772,6 +780,15 @@ class TextTriggerHandler : TriggerToolHandler
 			scale_slider.value = z_trigger.scale;
 			scale_slider.alpha = same_scale ? 1.0 : multi_alpha;
 			
+			selected_font_size = z_trigger.font_size;
+			font_select.selected_value = z_trigger.font;
+			font_select.alpha = same_font ? 1.0 : multi_alpha;
+			font_size_select.alpha = same_font_size ? 1.0 : multi_alpha;
+			font_select.allow_reselect = !same_font;
+			font_size_select.allow_reselect = !same_font_size;
+			
+			update_font_sizes();
+			
 			z_properties_container.visible = true;
 		}
 		else if(@z_properties_container != null)
@@ -782,12 +799,31 @@ class TextTriggerHandler : TriggerToolHandler
 		ignore_events = false;
 	}
 	
-	private void update_z_properties()
+	private void update_font_sizes()
 	{
-		//scale_slider.value = vars.get_var('text_scale').get_float();
-		//selected_font_size = vars.get_var('font_size').get_int32();
-		//font_select.selected_value = vars.get_var('font').get_string();
-		//update_font_sizes();
+		font_size_select.clear();
+		@font_sizes = font::get_valid_sizes(font_select.selected_value);
+		
+		if(@font_sizes == null)
+			return;
+		
+		int selected_index = -1;
+		float closest_dist = 99999;
+		
+		for(uint i = 0; i < font_sizes.length(); i++)
+		{
+			const int size = font_sizes[i];
+			font_size_select.add_value(size + '', size + '');
+			
+			const float dist = abs(selected_font_size - size);
+			if(dist < closest_dist)
+			{
+				closest_dist = dist;
+				selected_index = i;
+			}
+		}
+		
+		font_size_select.selected_index = max(0, selected_index);
 	}
 	
 	private void create_visible_checkbox(const bool visible)
@@ -970,9 +1006,16 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		//vars.get_var('font').set_string(font_select.selected_value);
-		//ignore_next_font_size_update = true;
-		//update_font_sizes();
+		for(uint i = 0; i < editing.length; i++)
+		{
+			editing[i].font = font_select.selected_value;
+		}
+		
+		ignore_next_font_size_update = true;
+		update_font_sizes();
+		
+		font_select.alpha = 1.0;
+		font_select.allow_reselect = false;
 	}
 	
 	void on_font_size_change(EventInfo@ event)
@@ -980,19 +1023,25 @@ class TextTriggerHandler : TriggerToolHandler
 		if(ignore_events)
 			return;
 		
-		//if(font_size_select.selected_index == -1)
-		//	return;
-		//
-		//vars.get_var('font_size').set_int32(font_sizes[font_size_select.selected_index]);
-		//
-		//if(!ignore_next_font_size_update)
-		//{
-		//	selected_font_size = font_sizes[font_size_select.selected_index];
-		//}
-		//else
-		//{
-		//	ignore_next_font_size_update = false;
-		//}
+		if(font_size_select.selected_index == -1)
+			return;
+		
+		const int new_size = font_sizes[font_size_select.selected_index];
+		for(uint i = 0; i < editing.length; i++)
+		{
+			editing[i].font_size = new_size;
+		}
+		
+		if(!ignore_next_font_size_update)
+		{
+			selected_font_size = font_sizes[font_size_select.selected_index];
+			font_size_select.alpha = 1.0;
+			font_size_select.allow_reselect = false;
+		}
+		else
+		{
+			ignore_next_font_size_update = false;
+		}
 	}
 	
 }

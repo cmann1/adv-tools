@@ -49,7 +49,6 @@ class EdgeBrushTool : Tool
 	// Settings
 	// //////////////////////////////////////////////////////////
 	
-	// TODO: Set to Brush
 	EdgeBrushMode mode = Brush;
 	float brush_radius = 48;
 	/// Which edges must be updated: Top, Bottom, Left, Right

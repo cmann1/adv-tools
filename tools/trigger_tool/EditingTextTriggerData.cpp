@@ -16,6 +16,8 @@ class EditingTextTriggerData
 	varvalue@ sub_layer_var;
 	varvalue@ rotation_var;
 	varvalue@ scale_var;
+	varvalue@ font_var;
+	varvalue@ font_size_var;
 	
 	private string _text;
 	private uint _colour;
@@ -23,6 +25,8 @@ class EditingTextTriggerData
 	private int _sub_layer;
 	private int _rotation;
 	private float _scale;
+	private string _font;
+	private int _font_size;
 	
 	private uint _stored_colour;
 	private int _stored_layer;
@@ -59,8 +63,11 @@ class EditingTextTriggerData
 			@rotation_var = vars.get_var('text_rotation');
 			_rotation = rotation_var.get_int32();
 			
-			@scale_var = vars.get_var('text_scale');
-			_scale = scale_var.get_float();
+			@font_var = vars.get_var('font');
+			_font = font_var.get_string();
+			
+			@font_size_var = vars.get_var('font_size');
+			_font_size = font_size_var.get_int32();
 		}
 	}
 	
@@ -179,6 +186,36 @@ class EditingTextTriggerData
 			
 			_scale = value;
 			scale_var.set_float(value);
+		}
+	}
+	
+	string font
+	{
+		get const { return _font; }
+		set
+		{
+			if(!is_z_trigger)
+				return;
+			if(_font== value)
+				return;
+			
+			_font = value;
+			font_var.set_string(value);
+		}
+	}
+	
+	int font_size
+	{
+		get const { return _font_size; }
+		set
+		{
+			if(!is_z_trigger)
+				return;
+			if(_font_size== value)
+				return;
+			
+			_font_size = value;
+			font_size_var.set_int32(value);
 		}
 	}
 	
