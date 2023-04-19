@@ -142,13 +142,13 @@ class ExtendedTriggerTool : Tool
 			}
 		}
 		
-		if(!script.alt.down)
+		if(!script.ctrl.down || !script.alt.down)
 			return;
 		
-		const float radius = 96;
 		int i = script.g.get_entity_collision(
-			script.mouse.y - radius, script.mouse.y + radius,
-			script.mouse.x - radius, script.mouse.x + radius, ColType::Trigger);
+			script.view_y1, script.view_y2,
+			script.view_x1, script.view_x2,
+			ColType::Trigger);
 		
 		while(i-- > 0)
 		{
