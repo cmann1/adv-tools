@@ -14,6 +14,8 @@
 #include 'EditingTextTriggerData.cpp';
 #include 'TriggerToolHandler.cpp';
 
+const string EMBED_spr_icon_text = SPRITES_BASE + 'icon_text.png';
+
 namespace TextTriggerType
 {
 	
