@@ -11,7 +11,7 @@
 #include '../../../../lib/ui3/elements/Window.cpp';
 #include '../../../../lib/ui3/layouts/AnchorLayout.cpp';
 
-#include 'EditingTextTriggerData.cpp';
+#include 'TextTriggerHandlerData.cpp';
 #include 'TriggerToolHandler.cpp';
 
 const string EMBED_spr_icon_text = SPRITES_BASE + 'icon_text.png';
@@ -40,9 +40,9 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private entity@ trigger;
 	private string trigger_type = '';
-	private array<EditingTextTriggerData@> select_list;
-	private EditingTextTriggerData@ select_z_trigger;
-	private EditingTextTriggerData@ select_normal_trigger;
+	private array<TextTriggerHandlerData@> select_list;
+	private TextTriggerHandlerData@ select_z_trigger;
+	private TextTriggerHandlerData@ select_normal_trigger;
 	
 	protected bool skip_next_selection;
 	
@@ -144,7 +144,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			
 			if(!data.is_z_trigger && data.hidden)
 			{
@@ -164,7 +164,7 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				EditingTextTriggerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = select_list[i];
 				draw_line_to_ui(data.trigger.x(), data.trigger.y(), popup.popup);
 			}
 		}
@@ -196,7 +196,7 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			for(int i = int(select_list.length) - 1; i >= 0; i--)
 			{
-				EditingTextTriggerData@ data = @select_list[i];
+				TextTriggerHandlerData@ data = @select_list[i];
 				if(data.trigger.destroyed())
 				{
 					select_list.removeAt(i);
@@ -322,7 +322,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			data.base_rotation = data.rotation;
 		}
 		
@@ -343,7 +343,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			const int base_val = data.rotation;
 			data.rotation = int(normalize_degress(data.base_rotation + offset * RAD2DEG));
 			
@@ -372,7 +372,7 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				EditingTextTriggerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = select_list[i];
 				data.rotation = int(data.base_rotation);
 			}
 		}
@@ -390,7 +390,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			data.base_scale = data.scale;
 		}
 		
@@ -412,7 +412,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			const float base_val = data.scale;
 			data.scale = data.base_scale * scale;
 			
@@ -441,7 +441,7 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				EditingTextTriggerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = select_list[i];
 				data.scale = data.base_scale;
 			}
 		}
@@ -468,7 +468,7 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				EditingTextTriggerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = select_list[i];
 				if(!data.trigger.is_same(trigger))
 					continue;
 				
@@ -526,7 +526,7 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				EditingTextTriggerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = select_list[i];
 				
 				if(@select_z_trigger == null && data.is_z_trigger)
 				{
@@ -549,11 +549,11 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		if(@select_z_trigger == null && trigger_type == TextTriggerType::ZTextProp)
 		{
-			@select_z_trigger = EditingTextTriggerData(trigger);
+			@select_z_trigger = TextTriggerHandlerData(trigger);
 		}
 		else if(@select_normal_trigger == null && trigger_type == TextTriggerType::Normal)
 		{
-			@select_normal_trigger = EditingTextTriggerData(trigger);
+			@select_normal_trigger = TextTriggerHandlerData(trigger);
 		}
 	}
 	
@@ -572,7 +572,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			if(new_trigger.is_same(data.trigger))
 			{
 				select_list.removeAt(i);
@@ -587,7 +587,7 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 		}
 		
-		EditingTextTriggerData@ data = EditingTextTriggerData(new_trigger);
+		TextTriggerHandlerData@ data = TextTriggerHandlerData(new_trigger);
 		select_list.insertLast(data);
 		return 1;
 	}
@@ -597,7 +597,7 @@ class TextTriggerHandler : TriggerToolHandler
 		if(select_list.length == 0)
 			return;
 		
-		EditingTextTriggerData@ data = select_list[0];
+		TextTriggerHandlerData@ data = select_list[0];
 		@trigger = data.trigger;
 		trigger_type = data.trigger_type;
 		update_z_trigger(true);
@@ -646,7 +646,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			
 			if(!accept)
 			{
@@ -935,7 +935,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			x += data.trigger.x();
 			y += data.trigger.y();
 		}
@@ -977,7 +977,7 @@ class TextTriggerHandler : TriggerToolHandler
 		// Check properties
 		// 
 		
-		EditingTextTriggerData@ data = select_list[0];
+		TextTriggerHandlerData@ data = select_list[0];
 		editing_type = data.trigger_type;
 		
 		@select_z_trigger = editing_type == TextTriggerType::ZTextProp ? data : null;
@@ -995,8 +995,8 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 1; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data0 = select_list[i - 1];
-			EditingTextTriggerData@ data1 = select_list[i];
+			TextTriggerHandlerData@ data0 = select_list[i - 1];
+			TextTriggerHandlerData@ data1 = select_list[i];
 			const bool is_0_normal = data0.trigger_type == TextTriggerType::Normal;
 			const bool is_1_normal = data1.trigger_type == TextTriggerType::Normal;
 			const bool is_0_z_text = !is_0_normal;
@@ -1230,7 +1230,7 @@ class TextTriggerHandler : TriggerToolHandler
 		const string text = text_box.text;
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			data.text = text;
 		}
 		
@@ -1295,7 +1295,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			EditingTextTriggerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = select_list[i];
 			
 			if(opened || layer_button.layer_changed)
 			{

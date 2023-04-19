@@ -1,4 +1,4 @@
-#include 'TextTriggerTool.cpp';
+#include 'TextTriggerHandler.cpp';
 
 class ExtendedTriggerTool : Tool
 {

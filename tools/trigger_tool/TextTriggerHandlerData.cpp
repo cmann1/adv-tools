@@ -1,6 +1,6 @@
 #include '../../misc/DataSetMode.cpp';
 
-class EditingTextTriggerData
+class TextTriggerHandlerData
 {
 	
 	entity@ trigger;
@@ -36,7 +36,7 @@ class EditingTextTriggerData
 	private int _stored_layer;
 	private int _stored_sub_layer;
 	
-	EditingTextTriggerData(entity@ trigger)
+	TextTriggerHandlerData(entity@ trigger)
 	{
 		@this.trigger = trigger;
 		trigger_type = trigger.type_name();
