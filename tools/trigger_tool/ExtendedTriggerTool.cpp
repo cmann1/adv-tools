@@ -70,7 +70,7 @@ class ExtendedTriggerTool : Tool
 	{
 		update_selected_trigger(script.editor.selected_trigger);
 		
-		if(!script.ui.is_mouse_active && @script.ui.focus == null && !script.input.is_polling_keyboard())
+		if(!script.ui.is_mouse_active && script.scene_focus)
 		{
 			if(script.ctrl.down && script.input.key_check_pressed_vk(VK::C))
 			{

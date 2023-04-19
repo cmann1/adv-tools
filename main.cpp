@@ -74,6 +74,7 @@ class AdvToolScript
 	float zoom;
 	bool mouse_in_gui;
 	bool mouse_in_scene;
+	bool ui_focus;
 	bool scene_focus;
 	bool in_editor = true;
 	EditorKey ctrl = EditorKey(input, GVB::Control);
@@ -512,7 +513,8 @@ class AdvToolScript
 		
 		mouse_in_gui = editor.mouse_in_gui();
 		mouse_in_scene = !mouse_in_gui && !ui.is_mouse_over_ui && !ui.is_mouse_active && !space.down;
-		scene_focus = @ui.focus ==  null;
+		ui_focus = input.is_polling_keyboard();
+		scene_focus = @ui.focus ==  null && !ui_focus;
 		
 		handle_keyboard();
 		handles.step();
@@ -539,7 +541,7 @@ class AdvToolScript
 		}
 		
 		if(
-			config.EnableShortcuts && @ui.focus == null && shortcut_keys_enabled && !input.is_polling_keyboard() &&
+			config.EnableShortcuts && @ui.focus == null && shortcut_keys_enabled && !ui_focus &&
 			(@selected_tool == null || !selected_tool.active))
 		{
 			if(config.KeyPrevTool.check())
@@ -651,7 +653,7 @@ class AdvToolScript
 		{
 			pressed_key_active = false;
 			
-			if(input.is_polling_keyboard() || !input.key_check_gvb(pressed_key))
+			if(ui_focus || !input.key_check_gvb(pressed_key))
 			{
 				pressed_key = -1;
 			}
@@ -667,7 +669,7 @@ class AdvToolScript
 			}
 		}
 		
-		if(!input.is_polling_keyboard())
+		if(!ui_focus)
 		{
 			for(int i = int(Settings::RepeatKeys.length()) - 1; i >= 0; i--)
 			{

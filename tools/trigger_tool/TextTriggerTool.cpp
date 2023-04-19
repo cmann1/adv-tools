@@ -39,7 +39,7 @@ class TextTriggerHandler : TriggerToolHandler
 	private Window@ window;
 	private Checkbox@ visible_checkbox;
 	private TextBox@ text_box;
-	private Container@ properties_container;
+	private Container@ z_properties_container;
 	
 	private ColourSwatch@ colour_swatch;
 	private LayerButton@ layer_button;
@@ -49,10 +49,15 @@ class TextTriggerHandler : TriggerToolHandler
 	private Select@ font_select;
 	private Select@ font_size_select;
 	
+	private float colour_switch_open_alpha;
+	
 	private array<EditingTextTriggerData@> editing;
 	private string editing_type;
+	private const array<int>@ font_sizes;
+	private int selected_font_size;
 	
 	private bool ignore_events;
+	private bool ignore_next_font_size_update;
 	/// Lock the text box input for one frame after pressing Enter to start editing to
 	/// prevent the Enter/text event being processed by the TextBox and overwrites the selected text.
 	private bool lock_input;
@@ -172,7 +177,7 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 			else if(changed)
 			{
-				update_editing_ui_for_triggers();
+				update_text_properties();
 			}
 		}
 		
@@ -194,16 +199,16 @@ class TextTriggerHandler : TriggerToolHandler
 	private void check_keys()
 	{
 		// Start editing with Enter.
-		if(@trigger != null && editing.length == 0 && script.consume_pressed_gvb(GVB::Return))
+		if(@trigger != null && editing.length == 0 && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
 		{
 			lock_input = true;
 			start_editing(trigger);
 		}
 		
 		// Accept/Cancel with Enter/Escape when the textbox isn't focused..
-		if(@script.ui.focus == null)
+		if(script.scene_focus)
 		{
-			if(@colour_swatch == null || !colour_swatch.open)
+			if(!sub_ui_active())
 			{
 				if(script.escape_press)
 				{
@@ -217,13 +222,21 @@ class TextTriggerHandler : TriggerToolHandler
 		}
 		
 		// Consume Enter to prevent the default editing.
-		if(@trigger != null && script.return_press)
+		if(@trigger != null && !script.ui_focus && !sub_ui_active() && script.return_press)
 		{
 			if(!script.ctrl.down && script.return_press)
 			{
 				script.input.key_clear_gvb(GVB::Return);
 			}
 		}
+	}
+	
+	private bool sub_ui_active()
+	{
+		if(@colour_swatch == null)
+			return false;
+		
+		return colour_swatch.open || layer_button.open;
 	}
 	
 	private void update_selected_trigger(entity@ trigger, const string &in type='')
@@ -275,7 +288,7 @@ class TextTriggerHandler : TriggerToolHandler
 				if(toggle && !trigger.is_same(this.trigger))
 				{
 					editing.removeAt(i);
-					update_editing_ui_for_triggers();
+					update_text_properties();
 				}
 				return;
 			}
@@ -286,7 +299,7 @@ class TextTriggerHandler : TriggerToolHandler
 		EditingTextTriggerData@ data = EditingTextTriggerData(trigger);
 		editing.insertLast(data);
 		
-		update_editing_ui_for_triggers();
+		update_text_properties();
 		
 		if(is_window_created)
 		{
@@ -299,6 +312,7 @@ class TextTriggerHandler : TriggerToolHandler
 		window.show();
 		window.parent.move_to_front(window);
 		@script.ui.focus = text_box;
+		text_box.select_all();
 	}
 	
 	private void stop_editing(const bool accept, const bool update_ui=true)
@@ -451,6 +465,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		@text_box = TextBox(ui);
 		text_box.multi_line = true;
+		text_box.select_all_on_focus = false;
 		text_box.accept_on_blur = false;
 		text_box.width  = 500;
 		text_box.height = 300;
@@ -475,6 +490,128 @@ class TextTriggerHandler : TriggerToolHandler
 		script.window_manager.register_element(window);
 		
 		return true;
+	}
+	
+	private void create_z_properties_container()
+	{
+		if(@z_properties_container != null)
+			return;
+		
+		UI@ ui = script.ui;
+		Style@ style = ui.style;
+		
+		@z_properties_container = Container(ui);
+		z_properties_container.y = text_box.y + text_box.height + ui.style.spacing;
+		z_properties_container.width = text_box.width;
+		z_properties_container.anchor_left.pixel(0);
+		z_properties_container.anchor_right.pixel(0);
+		z_properties_container.anchor_bottom.pixel(0);
+		
+		text_box.anchor_bottom.sibling(z_properties_container).padding(style.spacing);
+		
+		@rotation_wheel = RotationWheel(ui);
+		z_properties_container.add_child(rotation_wheel);
+		
+		// Colour swatch
+		
+		@colour_swatch = ColourSwatch(ui);
+		colour_swatch.width  = rotation_wheel.height;
+		colour_swatch.height = rotation_wheel.height;
+		@colour_swatch.tooltip = PopupOptions(ui, 'Colour');
+		colour_swatch.change.on(EventCallback(on_colour_change));
+		colour_swatch.activate.on(EventCallback(on_colour_activate));
+		z_properties_container.add_child(colour_swatch);
+		
+		// Layer button
+		
+		@layer_button = LayerButton(ui);
+		layer_button.height = rotation_wheel.height;
+		layer_button.auto_close = false;
+		layer_button.x = colour_swatch.x + colour_swatch.width + style.spacing;
+		@layer_button.tooltip = PopupOptions(ui, 'Layer');
+		layer_button.change.on(EventCallback(on_layer_select));
+		layer_button.select.on(EventCallback(on_layer_select));
+		z_properties_container.add_child(layer_button);
+		
+		@layer_select = layer_button.layer_select;
+		layer_select.multi_select = false;
+		layer_select.min_select = 1;
+		layer_select.min_select_layers = 1;
+		
+		// Rotation wheel
+		
+		rotation_wheel.x = layer_button.x + layer_button.width + style.spacing;
+		rotation_wheel.start_angle = 0;
+		rotation_wheel.allow_range = false;
+		rotation_wheel.auto_tooltip = true;
+		rotation_wheel.tooltip_precision = 0;
+		rotation_wheel.tooltip_prefix = 'Rotation: ';
+		rotation_wheel.change.on(EventCallback(on_rotation_change));
+		
+		// Scale slider
+		
+		@scale_slider = NumberSlider(ui, 0, NAN, NAN, 0.01);
+		scale_slider.x = colour_swatch.x;
+		scale_slider.y = colour_swatch.y + colour_swatch.height + style.spacing;
+		scale_slider.width = (rotation_wheel.x + rotation_wheel.width) - scale_slider.x;
+		@scale_slider.tooltip = PopupOptions(ui, 'Scale');
+		scale_slider.change.on(EventCallback(on_scale_change));
+		z_properties_container.add_child(scale_slider);
+		
+		// Font select
+		
+		@font_select = Select(ui);
+		font_select.anchor_right.pixel(0);
+		z_properties_container.add_child(font_select);
+		
+		font_select.add_value(font::ENVY_BOLD, 'Envy Bold');
+		font_select.add_value(font::SANS_BOLD, 'Sans Bold');
+		font_select.add_value(font::CARACTERES, 'Caracteres');
+		font_select.add_value(font::PROXIMANOVA_REG, 'ProximaNovaReg');
+		font_select.add_value(font::PROXIMANOVA_THIN, 'ProximaNovaThin');
+		
+		font_select.width = 200;
+		font_select.x = z_properties_container.width - font_select.width;
+		font_select.y = colour_swatch.y;
+		font_select.change.on(EventCallback(on_font_change));
+		
+		Label@ font_label = create_label('Font');
+		font_label.anchor_right.sibling(font_select).padding(style.spacing);
+		font_label.y = font_select.y;
+		font_label.height = font_select.height;
+		
+		// Font size select
+		
+		@font_size_select = Select(ui);
+		font_size_select.anchor_right.pixel(0);
+		z_properties_container.add_child(font_size_select);
+		
+		font_size_select.width = 85;
+		font_size_select.x = z_properties_container.width - font_size_select.width;
+		font_size_select.y = font_select.y + font_select.height + style.spacing;
+		font_size_select.change.on(EventCallback(on_font_size_change));
+		
+		Label@ font_size_label = create_label('Size');
+		font_size_label.anchor_right.sibling(font_size_select).padding(style.spacing);
+		font_size_label.x = font_size_select.x - font_size_label.width - style.spacing;
+		font_size_label.y = font_size_select.y;
+		font_size_label.height = font_size_select.height;
+		
+		z_properties_container.fit_to_contents(true);
+		@z_properties_container.layout = AnchorLayout(script.ui).set_padding(0);
+		
+		window.add_child(z_properties_container);
+	}
+	
+	private Label@ create_label(const string text)
+	{
+		Label@ label = Label(script.ui, text);
+		label.set_padding(script.ui.style.spacing, script.ui.style.spacing, 0, 0);
+		label.align_v = GraphicAlign::Middle;
+		label.fit_to_contents();
+		z_properties_container.add_child(label);
+		
+		return label;
 	}
 	
 	private void update_toolbar_position()
@@ -502,7 +639,7 @@ class TextTriggerHandler : TriggerToolHandler
 		popup.interactable = !script.space.down;
 	}
 	
-	private void update_editing_ui_for_triggers()
+	private void update_text_properties()
 	{
 		// 
 		// Check properties
@@ -510,31 +647,57 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		EditingTextTriggerData@ data = editing[0];
 		editing_type = data.trigger_type;
-		bool same_text = true;
-		bool same_hidden = true;
+		
 		EditingTextTriggerData@ z_trigger = editing_type == TextTriggerType::ZTextProp ? data : null;
 		EditingTextTriggerData@ normal_trigger = editing_type == TextTriggerType::Normal ? data : null;
+		
+		bool same_text = true;
+		bool same_hidden = true;
+		bool same_colour = true;
+		bool same_layer = true;
+		bool same_sub_layer = true;
 		
 		for(uint i = 1; i < editing.length; i++)
 		{
 			EditingTextTriggerData@ data0 = editing[i - 1];
 			EditingTextTriggerData@ data1 = editing[i];
+			const bool is_0_normal = data0.trigger_type == TextTriggerType::Normal;
+			const bool is_1_normal = data1.trigger_type == TextTriggerType::Normal;
+			const bool is_0_z_text = !is_0_normal;
+			const bool is_1_z_text = !is_1_normal;
 			
-			if(@z_trigger == null && data1.trigger_type == TextTriggerType::ZTextProp)
+			if(is_1_z_text)
 			{
-				@z_trigger = data1;
+				if(@z_trigger == null)
+				{
+					@z_trigger = data1;
+				}
+				
+				if(is_0_z_text)
+				{
+					if(same_colour && data0.colour != data1.colour)
+					{
+						same_colour = false;
+					}
+					if(same_layer && data0.layer != data1.layer)
+					{
+						same_layer = false;
+					}
+					if(same_sub_layer && data0.sub_layer != data1.sub_layer)
+					{
+						same_sub_layer = false;
+					}
+				}
 			}
-			if(data1.trigger_type == TextTriggerType::Normal)
+			
+			if(is_1_normal)
 			{
 				if(@normal_trigger == null)
 				{
 					@normal_trigger = data1;
 				}
 				
-				if(
-					same_hidden && data0.trigger_type == TextTriggerType::Normal &&
-					data0.hidden != data1.hidden
-				)
+				if(same_hidden && is_0_normal && data0.hidden != data1.hidden)
 				{
 					same_hidden = false;
 				}
@@ -581,7 +744,38 @@ class TextTriggerHandler : TriggerToolHandler
 		text_box.has_colour = !same_text;
 		text_box.lock_input = lock_input;
 		
+		if(@z_trigger != null)
+		{
+			create_z_properties_container();
+			
+			const float multi_alpha = 0.5;
+			
+			colour_swatch.colour = z_trigger.colour;
+			colour_swatch.alpha = same_colour ? 1.0 : multi_alpha;
+			
+			layer_select.set_selected_layer(same_layer ? z_trigger.layer : -1, false, true);
+			layer_select.set_selected_sub_layer(same_sub_layer ? z_trigger.sub_layer : -1, false, true);
+			
+			z_properties_container.visible = true;
+		}
+		else if(@z_properties_container != null)
+		{
+			z_properties_container.visible = false;
+		}
+		
 		ignore_events = false;
+	}
+	
+	private void update_z_properties()
+	{
+		//layer_select.set_selected_layer(vars.get_var('layer').get_int32(), false);
+		//layer_select.set_selected_sub_layer(vars.get_var('sublayer').get_int32(), false);
+		//rotation_wheel.degrees = float(vars.get_var('text_rotation').get_int32());
+		//scale_slider.value = vars.get_var('text_scale').get_float();
+		//
+		//selected_font_size = vars.get_var('font_size').get_int32();
+		//font_select.selected_value = vars.get_var('font').get_string();
+		//update_font_sizes();
 	}
 	
 	private void create_visible_checkbox(const bool visible)
@@ -627,17 +821,19 @@ class TextTriggerHandler : TriggerToolHandler
 		}
 	}
 	
-	void on_accept_click(EventInfo@ event)
+	private void on_accept_click(EventInfo@ event)
 	{
 		stop_editing(true);
 	}
 	
-	void on_cancel_click(EventInfo@ event)
+	private void on_cancel_click(EventInfo@ event)
 	{
 		stop_editing(false);
 	}
 	
-	void on_text_change(EventInfo@ event)
+	// Text Properties
+	
+	private void on_text_change(EventInfo@ event)
 	{
 		if(ignore_events)
 			return;
@@ -652,13 +848,12 @@ class TextTriggerHandler : TriggerToolHandler
 		text_box.has_colour = false;
 	}
 	
-	void on_text_accept(EventInfo@ event)
+	private void on_text_accept(EventInfo@ event)
 	{
 		stop_editing(event.type == EventType::ACCEPT);
 	}
 	
-	
-	void on_hidden_change(EventInfo@ event)
+	private void on_hidden_change(EventInfo@ event)
 	{
 		if(ignore_events)
 			return;
@@ -666,11 +861,113 @@ class TextTriggerHandler : TriggerToolHandler
 		for(uint i = 0; i < editing.length; i++)
 		{
 			EditingTextTriggerData@ data = editing[i];
-			if(data.trigger_type == TextTriggerType::Normal)
+			if(!data.is_z_trigger)
 			{
 				data.hidden = !visible_checkbox.checked;
 			}
 		}
+	}
+	
+	// Z Properties
+	
+	void on_colour_activate(EventInfo@ event)
+	{
+		if(ignore_events)
+			return;
+		
+		if(event.type == EventType::OPEN)
+		{
+			colour_switch_open_alpha = colour_swatch.alpha;
+			for(uint i = 0; i < editing.length; i++)
+			{
+				editing[i].set_colour(0, DataSetMode::Store);
+			}
+		}
+	}
+	
+	void on_colour_change(EventInfo@ event)
+	{
+		if(ignore_events)
+			return;
+		if(event.type == EventType::ACCEPT)
+			return;
+		
+		const bool cancelled = event.type == EventType::CANCEL;
+		
+		for(uint i = 0; i < editing.length; i++)
+		{
+			editing[i].set_colour(colour_swatch.colour, cancelled ? DataSetMode::Restore : DataSetMode::Set);
+		}
+		
+		colour_swatch.alpha = cancelled ? colour_switch_open_alpha : 1.0;
+	}
+	
+	void on_layer_select(EventInfo@ event)
+	{
+		if(ignore_events)
+			return;
+		
+		for(uint i = 0; i < editing.length; i++)
+		{
+			EditingTextTriggerData@ data = editing[i];
+			if(data.is_z_trigger)
+			{
+				if(layer_button.layer_changed)
+				{
+					data.layer = layer_select.selected_layer;
+				}
+				if(layer_button.sub_layer_changed)
+				{
+					data.sub_layer = layer_select.selected_sub_layer;
+				}
+			}
+		}
+	}
+	
+	void on_rotation_change(EventInfo@ event)
+	{
+		if(ignore_events)
+			return;
+		
+		//vars.get_var('text_rotation').set_int32(int(rotation_wheel.degrees));
+	}
+	
+	void on_scale_change(EventInfo@ event)
+	{
+		if(ignore_events)
+			return;
+		
+		//vars.get_var('text_scale').set_float(scale_slider.value);
+	}
+	
+	void on_font_change(EventInfo@ event)
+	{
+		if(ignore_events)
+			return;
+		
+		//vars.get_var('font').set_string(font_select.selected_value);
+		//ignore_next_font_size_update = true;
+		//update_font_sizes();
+	}
+	
+	void on_font_size_change(EventInfo@ event)
+	{
+		if(ignore_events)
+			return;
+		
+		//if(font_size_select.selected_index == -1)
+		//	return;
+		//
+		//vars.get_var('font_size').set_int32(font_sizes[font_size_select.selected_index]);
+		//
+		//if(!ignore_next_font_size_update)
+		//{
+		//	selected_font_size = font_sizes[font_size_select.selected_index];
+		//}
+		//else
+		//{
+		//	ignore_next_font_size_update = false;
+		//}
 	}
 	
 }
