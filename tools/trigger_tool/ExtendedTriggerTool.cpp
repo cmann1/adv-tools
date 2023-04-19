@@ -5,6 +5,7 @@ class ExtendedTriggerTool : Tool
 	
 	entity@ selected_trigger;
 	string selected_type;
+	array<entity@> hidden_text_triggers;
 	
 	array<entity@> clipboard;
 	
@@ -42,6 +43,29 @@ class ExtendedTriggerTool : Tool
 	// Tool Callbacks
 	// //////////////////////////////////////////////////////////
 	
+	protected void on_editor_loaded_impl() override
+	{
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.editor_loaded();
+		}
+	}
+	
+	protected void on_editor_unloaded_impl() override
+	{
+		if(@active_trigger_handler != null)
+		{
+			active_trigger_handler.editor_unloaded();
+		}
+		
+		update_selected_trigger(null);
+	}
+	
+	protected void on_deselect_impl() override
+	{
+		update_selected_trigger(null);
+	}
+	
 	protected void step_impl() override
 	{
 		update_selected_trigger(script.editor.selected_trigger);
@@ -70,6 +94,8 @@ class ExtendedTriggerTool : Tool
 			}
 		}
 		
+		check_hidden_triggers();
+		
 		if(@active_trigger_handler != null)
 		{
 			active_trigger_handler.step();
@@ -78,6 +104,19 @@ class ExtendedTriggerTool : Tool
 	
 	protected void draw_impl(const float sub_frame)
 	{
+		const uint hidden_clr =0xaa6666ff;
+		for(uint i = 0; i < hidden_text_triggers.length; i++)
+		{
+			entity@ e = hidden_text_triggers[i];
+			const float x = e.x();
+			const float y = e.y();
+			script.g.draw_rectangle_world(22, 22, x - 10, y - 10, x + 10, y + 10, 0, hidden_clr);
+			script.circle(
+				22, 22,
+				x, y, e.vars().get_var('width').get_int32(), 48,
+				4, hidden_clr);
+		}
+		
 		if(@active_trigger_handler != null)
 		{
 			active_trigger_handler.draw(sub_frame);
@@ -85,35 +124,46 @@ class ExtendedTriggerTool : Tool
 	}
 	
 	// //////////////////////////////////////////////////////////
-	// Tool Callbacks
-	// //////////////////////////////////////////////////////////
-	
-	protected void on_editor_loaded_impl() override
-	{
-		if(@active_trigger_handler != null)
-		{
-			active_trigger_handler.editor_loaded();
-		}
-	}
-	
-	protected void on_editor_unloaded_impl() override
-	{
-		if(@active_trigger_handler != null)
-		{
-			active_trigger_handler.editor_unloaded();
-		}
-		
-		update_selected_trigger(null);
-	}
-	
-	protected void on_deselect_impl() override
-	{
-		update_selected_trigger(null);
-	}
-	
-	// //////////////////////////////////////////////////////////
 	// Methods
 	// //////////////////////////////////////////////////////////
+	
+	private void check_hidden_triggers()
+	{
+		if(hidden_text_triggers.length > 0)
+		{
+			hidden_text_triggers.resize(0);
+		}
+		
+		if(@selected_trigger != null && selected_type == TextTriggerType::Normal)
+		{
+			if(selected_trigger.vars().get_var('hide').get_bool())
+			{
+				hidden_text_triggers.insertLast(selected_trigger);
+			}
+		}
+		
+		if(!script.alt.down)
+			return;
+		
+		const float radius = 96;
+		int i = script.g.get_entity_collision(
+			script.mouse.y - radius, script.mouse.y + radius,
+			script.mouse.x - radius, script.mouse.x + radius, ColType::Trigger);
+		
+		while(i-- > 0)
+		{
+			entity@ e = script.g.get_entity_collision_index(i);
+			
+			const string name = e.type_name();
+			if(name != 'text_trigger')
+				continue;
+			
+			if(e.vars().get_var('hide').get_bool())
+			{
+				hidden_text_triggers.insertLast(e);
+			}
+		}
+	}
 	
 	private void copy_trigger(entity@ trigger, const bool append_clipbaord=false)
 	{
