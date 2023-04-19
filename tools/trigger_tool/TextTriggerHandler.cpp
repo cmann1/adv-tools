@@ -616,9 +616,16 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		const bool is_window_created = create_window();
 		
-		for(uint i = 0; i < select_list.length; i++)
+		if(is_editing)
 		{
-			select_list[i].store_all();
+			select_list[select_list.length - 1].store_all();
+		}
+		else
+		{
+			for(uint i = 0; i < select_list.length; i++)
+			{
+				select_list[i].store_all();
+			}
 		}
 		
 		update_text_properties();
