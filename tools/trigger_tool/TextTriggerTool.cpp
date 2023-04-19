@@ -44,6 +44,8 @@ class TextTriggerHandler : TriggerToolHandler
 	private EditingTextTriggerData@ select_z_trigger;
 	private EditingTextTriggerData@ select_normal_trigger;
 	
+	protected bool skip_next_selection;
+	
 	private Container@ dummy_overlay;
 	private PopupOptions@ popup;
 	private Toolbar@ toolbar;
@@ -95,11 +97,18 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void select(entity@ trigger, const string &in type) override
 	{
+		if(skip_next_selection)
+		{
+			skip_next_selection = false;
+			return;
+		}
+		
 		update_selected_trigger(trigger, type);
 	}
 	
 	void deselect() override
 	{
+		skip_next_selection = false;
 		update_selected_trigger(null);
 		state = Idle;
 		
@@ -483,8 +492,33 @@ class TextTriggerHandler : TriggerToolHandler
 		update_z_trigger();
 	}
 	
-	private void update_z_trigger()
+	private void update_z_trigger(const bool full=false)
 	{
+		if(full)
+		{
+			@select_z_trigger = null;
+			@select_normal_trigger = null;
+			
+			for(uint i = 0; i < select_list.length; i++)
+			{
+				EditingTextTriggerData@ data = select_list[i];
+				
+				if(@select_z_trigger == null && data.is_z_trigger)
+				{
+					@select_z_trigger = data;
+				}
+				if(@select_normal_trigger == null && !data.is_z_trigger)
+				{
+					@select_normal_trigger = data;
+				}
+				
+				if(@select_z_trigger != null && @select_normal_trigger !=  null)
+					break;
+			}
+			
+			return;
+		}
+		
 		if(@trigger == null)
 			return;
 		
@@ -506,17 +540,29 @@ class TextTriggerHandler : TriggerToolHandler
 	{
 		if(@new_trigger == null)
 			return 0;
+		if(select_list.length == 1 && new_trigger.is_same(select_list[0].trigger))
+			return 0;
 		
-		if(@trigger != null && !new_trigger.is_same(trigger))
+		for(uint i = 0; i < select_list.length; i++)
 		{
-			for(uint i = 0; i < select_list.length; i++)
+			EditingTextTriggerData@ data = select_list[i];
+			if(new_trigger.is_same(data.trigger))
 			{
-				EditingTextTriggerData@ data = select_list[i];
-				if(new_trigger.is_same(data.trigger))
+				select_list.removeAt(i);
+				
+				// Update main selected trigger.
+				if(new_trigger.is_same(trigger))
 				{
-					select_list.removeAt(i);
-					return -1;
+					@data = select_list[0];
+					@trigger = data.trigger;
+					trigger_type = data.trigger_type;
+					update_z_trigger(true);
+					
+					skip_next_selection = true;
+					@script.editor.selected_trigger = trigger;
 				}
+				
+				return -1;
 			}
 		}
 		
@@ -609,9 +655,6 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			const string type = e.type_name();
 			if(type != TextTriggerType::Normal && type != TextTriggerType::ZTextProp)
-				continue;
-			
-			if(e.is_same(trigger))
 				continue;
 			
 			const float dist = dist_sqr(e.x(), e.y(), script.mouse.x, script.mouse.y);
