@@ -408,7 +408,7 @@ class TriggerToolHandler
 		
 		if(x1 < element.x1 || x1 > element.x2 || y1 < element.y1 || y1 > element.y2)
 		{
-			const float line_width = 2;
+			const float line_width = 4;
 			const uint colour = multiply_alpha(script.ui.style.normal_bg_clr, 0.5);
 			
 			closest_point_to_rect(x1, y1,
