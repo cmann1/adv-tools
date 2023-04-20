@@ -1242,6 +1242,48 @@ class AdvToolScript
 		return false;
 	}
 	
+	/**
+	 * @brief Convenience method for creating a label.
+	 * @param parent If provided the label is added to this parent.
+	 * @return The created label.
+	 */
+	Label@ create_label(const string &in text, Container@ parent=null)
+	{
+		Label@ label = Label(ui, text);
+		label.set_padding(ui.style.spacing, ui.style.spacing, 0, 0);
+		label.align_v = GraphicAlign::Middle;
+		label.fit_to_contents();
+		
+		if(@parent != null)
+		{
+			parent.add_child(label);
+		}
+		
+		return label;
+	}
+	
+	/**
+	 * @brief Convenience method to create a button with a name, icon, and tooltip.
+	 * @param name Required. The name used to identify this button.
+	 * @param icon Required. Assumes it's part of the script/plugin sprite set, and of the default `IconSize`.
+	 * @param tooltip If not empty adds a tooltip.
+	 * @return 
+	 */
+	Button@ create_toolbar_button(Toolbar@ toolbar, const string &in name, const string &in icon, const string &in tooltip='')
+	{
+		Button@ button = toolbar.create_button(SPRITE_SET, icon, Settings::IconSize, Settings::IconSize);
+		button.name = name;
+		button.fit_to_contents(true);
+		
+		if(tooltip != '')
+		{
+			@button.tooltip = PopupOptions(ui, tooltip);
+		}
+		
+		init_icon(button);
+		return button;
+	}
+	
 	// //////////////////////////////////////////////////////////
 	// Private Methods
 	// //////////////////////////////////////////////////////////

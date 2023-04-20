@@ -33,7 +33,7 @@ class TriggerHandlerData
 		copy_vars(trigger, restore_data);
 	}
 	
-	void restor_all()
+	void restore_all()
 	{
 		if(@restore_data == null)
 			return;

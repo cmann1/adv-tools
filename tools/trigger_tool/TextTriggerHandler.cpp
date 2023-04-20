@@ -466,25 +466,14 @@ class TextTriggerHandler : TriggerToolHandler
 		}
 	}
 	
-	private void start_editing(entity@ trigger=null)
+	private void start_editing()
 	{
 		const bool is_window_created = create_window();
 		
-		if(is_editing)
-		{
-			// Already editing - assume a trigger was added to the selection so just store the last one.
-			selected(-1).store_all();
-		}
-		else
-		{
-			is_editing = true;
-			
-			for(uint i = 0; i < select_list.length; i++)
-			{
-				selected(i).store_all();
-			}
-		}
+		// Already editing - assume a trigger was added to the selection so just store the last one.
+		store_all_triggers_data(is_editing);
 		
+		is_editing = true;
 		update_properties();
 		
 		if(is_window_created)
@@ -506,16 +495,9 @@ class TextTriggerHandler : TriggerToolHandler
 		if(!is_editing)
 			return;
 		
-		const string text = accept && @text_box != null ? text_box.text : '';
-		
-		for(uint i = 0; i < select_list.length; i++)
+		if(!accept)
 		{
-			TextTriggerHandlerData@ data = selected(i);
-			
-			if(!accept)
-			{
-				data.restor_all();
-			}
+			restore_all_triggers_data();
 		}
 		
 		is_editing = false;
@@ -525,7 +507,7 @@ class TextTriggerHandler : TriggerToolHandler
 			edit_button.selected = false;
 			if(@window != null)
 			{
-				window.hide('user', script.in_editor);
+				window.hide(script.in_editor);
 			}
 		}
 	}
@@ -551,19 +533,10 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		@toolbar = Toolbar(ui, false, true);
 		toolbar.name = 'TriggerToolTextToolbar';
-		toolbar.x = script.main_toolbar.x;
-		toolbar.y = script.main_toolbar.y + script.main_toolbar.height;
-		toolbar.is_snap_target = false;
 		
-		EventCallback@ button_click = EventCallback(on_toolbar_button_click);
-		
-		@edit_button = toolbar.create_button(SPRITE_SET, 'icon_edit', Settings::IconSize, Settings::IconSize);
-		edit_button.name = 'edit';
+		@edit_button = script.create_toolbar_button(toolbar, 'edit', 'icon_edit', 'Edit');
 		edit_button.selectable = true;
-		edit_button.fit_to_contents(true);
-		@edit_button.tooltip = PopupOptions(ui, 'Edit');
-		script.init_icon(edit_button);
-		edit_button.mouse_click.on(button_click);
+		edit_button.mouse_click.on(EventCallback(on_toolbar_button_click));
 		
 		toolbar.fit_to_contents(true);
 		
@@ -707,7 +680,7 @@ class TextTriggerHandler : TriggerToolHandler
 		font_select.y = colour_swatch.y;
 		font_select.change.on(EventCallback(on_font_change));
 		
-		Label@ font_label = create_label('Font');
+		Label@ font_label = script.create_label('Font', z_properties_container);
 		font_label.anchor_right.sibling(font_select).padding(style.spacing);
 		font_label.y = font_select.y;
 		font_label.height = font_select.height;
@@ -723,7 +696,7 @@ class TextTriggerHandler : TriggerToolHandler
 		font_size_select.y = font_select.y + font_select.height + style.spacing;
 		font_size_select.change.on(EventCallback(on_font_size_change));
 		
-		Label@ font_size_label = create_label('Size');
+		Label@ font_size_label = script.create_label('Size', z_properties_container);
 		font_size_label.anchor_right.sibling(font_size_select).padding(style.spacing);
 		font_size_label.x = font_size_select.x - font_size_label.width - style.spacing;
 		font_size_label.y = font_size_select.y;
@@ -733,17 +706,6 @@ class TextTriggerHandler : TriggerToolHandler
 		@z_properties_container.layout = AnchorLayout(script.ui).set_padding(0);
 		
 		window.add_child(z_properties_container);
-	}
-	
-	private Label@ create_label(const string text)
-	{
-		Label@ label = Label(script.ui, text);
-		label.set_padding(script.ui.style.spacing, script.ui.style.spacing, 0, 0);
-		label.align_v = GraphicAlign::Middle;
-		label.fit_to_contents();
-		z_properties_container.add_child(label);
-		
-		return label;
 	}
 	
 	private void update_properties()

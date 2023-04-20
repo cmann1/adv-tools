@@ -1,4 +1,5 @@
 #include 'TextTriggerHandler.cpp';
+#include 'FogTriggerHandler.cpp';
 
 class ExtendedTriggerTool : Tool
 {
@@ -19,6 +20,7 @@ class ExtendedTriggerTool : Tool
 		init_shortcut_key(VK::T);
 		
 		add_trigger_handler(TextTriggerHandler(script, this));
+		add_trigger_handler(FogTriggerHandler(script, this));
 	}
 	
 	void create(ToolGroup@ group) override

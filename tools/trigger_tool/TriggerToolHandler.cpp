@@ -223,6 +223,40 @@ class TriggerToolHandler
 	 */
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) { }
 	
+	/**
+	 * @brief Stores trigger data before editing so changes can be reverted.
+	 * @param only_latest If true only the last selected trigger's data will be stored.
+	 *        Useful if e.g. store_all_triggers_data() has already been called.
+	 */
+	protected void store_all_triggers_data(const bool only_latest=false)
+	{
+		if(select_list.length == 0)
+			return;
+		
+		if(only_latest)
+		{
+			select_list[select_list.length - 1].store_all();
+		}
+		else
+		{
+			for(uint i = 0; i < select_list.length; i++)
+			{
+				select_list[i].store_all();
+			}
+		}
+	}
+	
+	/**
+	 * @brief Restores all selected triggers data. `store_all_triggers_data` Must have been called at least once before this.
+	 */
+	protected void restore_all_triggers_data()
+	{
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			select_list[i].restore_all();
+		}
+	}
+	
 	//
 	
 	/**
