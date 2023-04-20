@@ -83,7 +83,8 @@ class TriggerToolHandler
 		
 		// Don't allow deselecting if this is the only selected trigger.
 		const bool can_deslect = select_list.length > 1;
-		if(@new_trigger != null && (primary || can_deslect))
+		
+		if(@new_trigger != null)
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
@@ -109,6 +110,12 @@ class TriggerToolHandler
 				// Or remove from selection.
 				else if(new_trigger.is_same(data.trigger))
 				{
+					// This is the only selected trigger.
+					if(!can_deslect)
+					{
+						return 0;
+					}
+					
 					select_list.removeAt(i);
 					
 					// The primary trigger was deselected.
@@ -383,6 +390,25 @@ class TriggerToolHandler
 			
 			script.ui.style.draw_line(x1, y1, x2, y2, line_width, colour);
 		}
+	}
+	
+	protected void debug_select_list()
+	{
+		string output = 'Selected Triggers:';
+		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			TriggerHandlerData@ data = select_list[i];
+			
+			if(output != '')
+			{
+				output += '\n';
+			}
+			
+			output += '   ' + i + ': ' + data.trigger_type + ' [' + data.trigger.id() + ']';
+		}
+		
+		script.debug.print(output, 'TriggerToolHandlerSelectList');
 	}
 	
 }
