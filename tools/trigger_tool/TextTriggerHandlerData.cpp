@@ -82,12 +82,15 @@ class TextTriggerHandlerData : TriggerHandlerData
 	
 	bool hidden
 	{
-		get { return !is_z_trigger ? hide_var.get_bool() : false; }
+		get { return !is_z_trigger ? _hidden : false; }
 		set
 		{
 			if(is_z_trigger)
 				return;
+			if(_hidden == value)
+				return;
 			
+			_hidden = value;
 			hide_var.set_bool(value);
 		}
 	}
@@ -205,7 +208,7 @@ class TextTriggerHandlerData : TriggerHandlerData
 		{
 			if(!is_z_trigger)
 				return;
-			if(_font== value)
+			if(_font == value)
 				return;
 			
 			_font = value;
@@ -220,7 +223,7 @@ class TextTriggerHandlerData : TriggerHandlerData
 		{
 			if(!is_z_trigger)
 				return;
-			if(_font_size== value)
+			if(_font_size == value)
 				return;
 			
 			_font_size = value;

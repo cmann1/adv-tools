@@ -69,7 +69,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	bool should_handle(entity@ trigger, const string &in type) override
 	{
-		return type == 'text_trigger' || type == 'z_text_prop_trigger';
+		return type == TextTriggerType::Normal || type == TextTriggerType::ZTextProp;
 	}
 	
 	protected void select_impl(entity@ trigger, const string &in type) override
@@ -203,7 +203,6 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 			else
 			{
-				//update_selected_trigger(null);
 				select_trigger(null);
 			}
 		}
@@ -613,39 +612,6 @@ class TextTriggerHandler : TriggerToolHandler
 		lock_input = false;
 	}
 	
-	private entity@ pick_trigger()
-	{
-		if(script.ui.is_mouse_over_ui || script.mouse_in_gui)
-			return null;
-		
-		entity@ closest = null;
-		float closest_dist = MAX_FLOAT;
-		
-		int i = script.g.get_entity_collision(
-			script.mouse.y, script.mouse.y,
-			script.mouse.x, script.mouse.x,
-			ColType::Trigger);
-		
-		while(i-- > 0)
-		{
-			entity@ e = script.g.get_entity_collision_index(i);
-			
-			const string type = e.type_name();
-			if(type != TextTriggerType::Normal && type != TextTriggerType::ZTextProp)
-				continue;
-			
-			const float dist = dist_sqr(e.x(), e.y(), script.mouse.x, script.mouse.y);
-			
-			if(dist < closest_dist)
-			{
-				closest_dist = dist;
-				@closest = e;
-			}
-		}
-		
-		return closest;
-	}
-	
 	// //////////////////////////////////////////////////////////
 	// UI
 	// //////////////////////////////////////////////////////////
@@ -914,10 +880,9 @@ class TextTriggerHandler : TriggerToolHandler
 		// 
 		
 		TextTriggerHandlerData@ data = selected(0);
-		string editing_type = data.trigger_type;
 		
-		@selected_z_trigger = editing_type == TextTriggerType::ZTextProp ? data : null;
-		@selected_normal_trigger = editing_type == TextTriggerType::Normal ? data : null;
+		@selected_z_trigger = data.trigger_type == TextTriggerType::ZTextProp ? data : null;
+		@selected_normal_trigger = data.trigger_type == TextTriggerType::Normal ? data : null;
 		
 		bool same_text = true;
 		bool same_hidden = true;
@@ -988,18 +953,6 @@ class TextTriggerHandler : TriggerToolHandler
 				if(same_hidden && is_0_normal && data0.hidden != data1.hidden)
 				{
 					same_hidden = false;
-				}
-			}
-			
-			if(editing_type != TextTriggerType::Mixed)
-			{
-				if(data0.trigger_type != data1.trigger_type)
-				{
-					editing_type = TextTriggerType::Mixed;
-				}
-				else
-				{
-					editing_type = data0.trigger_type;
 				}
 			}
 			

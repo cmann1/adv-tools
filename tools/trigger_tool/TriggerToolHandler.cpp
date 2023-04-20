@@ -176,6 +176,39 @@ class TriggerToolHandler
 	// Utility
 	// //////////////////////////////////////////////////////////
 	
+	protected entity@ pick_trigger()
+	{
+		if(script.ui.is_mouse_over_ui || script.mouse_in_gui)
+			return null;
+		
+		entity@ closest = null;
+		float closest_dist = MAX_FLOAT;
+		
+		int i = script.g.get_entity_collision(
+			script.mouse.y, script.mouse.y,
+			script.mouse.x, script.mouse.x,
+			ColType::Trigger);
+		
+		while(i-- > 0)
+		{
+			entity@ e = script.g.get_entity_collision_index(i);
+			
+			const string type = e.type_name();
+			if(should_handle(e, type))
+				continue;
+			
+			const float dist = dist_sqr(e.x(), e.y(), script.mouse.x, script.mouse.y);
+			
+			if(dist < closest_dist)
+			{
+				closest_dist = dist;
+				@closest = e;
+			}
+		}
+		
+		return closest;
+	}
+	
 	protected void draw_line_to_ui(const float x, const float y, Element@ element)
 	{
 		if(@element == null || !element.visible)
