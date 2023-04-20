@@ -14,8 +14,6 @@
 #include 'TriggerToolHandler.cpp';
 #include 'TextTriggerHandlerData.cpp';
 
-const string EMBED_spr_icon_text = SPRITES_BASE + 'icon_text.png';
-
 class TextTriggerHandler : TriggerToolHandler
 {
 	
@@ -587,7 +585,7 @@ class TextTriggerHandler : TriggerToolHandler
 		window.min_width = 450;
 		window.min_height = 350;
 		window.name = 'TextToolTextProperties';
-		window.set_icon(SPRITE_SET, 'icon_text', 25, 25);
+		window.set_icon(SPRITE_SET, 'icon_edit', Settings::IconSize, Settings::IconSize);
 		ui.add_child(window);
 		window.x = 200;
 		window.y = 20;
