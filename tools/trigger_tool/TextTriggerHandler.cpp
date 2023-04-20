@@ -114,13 +114,9 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void draw(const float sub_frame) override
 	{
-		if(state == TriggerHandlerState::Idle && select_list.length > 0)
+		if(state == TriggerHandlerState::Idle)
 		{
-			for(uint i = 0; i < select_list.length; i++)
-			{
-				TextTriggerHandlerData@ data = selected(i);
-				draw_line_to_ui(data.trigger.x(), data.trigger.y(), selected_popup.popup);
-			}
+			draw_selected_popup_connections();
 		}
 		
 		if(state == TriggerHandlerState::Rotating || state == TriggerHandlerState::Scaling)
@@ -187,7 +183,7 @@ class TextTriggerHandler : TriggerToolHandler
 		if(state == TriggerHandlerState::Idle)
 		{
 			// Multi select
-			if(select_list.length > 0 && !script.alt.down && script.shift.down && script.mouse.left_press)
+			if(has_selection && !script.alt.down && script.shift.down && script.mouse.left_press)
 			{
 				script.input.key_clear_gvb(GVB::LeftClick);
 				
@@ -478,7 +474,8 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		if(is_editing)
 		{
-			selected(select_list.length - 1).store_all();
+			// Already editing - assume a trigger was added to the selection so just store the last one.
+			selected(-1).store_all();
 		}
 		else
 		{

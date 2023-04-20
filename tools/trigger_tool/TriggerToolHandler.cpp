@@ -337,6 +337,8 @@ class TriggerToolHandler
 	// Utility
 	// //////////////////////////////////////////////////////////
 	
+	protected bool has_selection { get const { return select_list.length > 0; } }
+	
 	protected entity@ pick_trigger()
 	{
 		if(script.ui.is_mouse_over_ui || script.mouse_in_gui)
@@ -368,6 +370,32 @@ class TriggerToolHandler
 		}
 		
 		return closest;
+	}
+	
+	/**
+	 * @brief Draw lines from all the selected triggers to the popup.
+	 */
+	protected void draw_selected_popup_connections()
+	{
+		if(@selected_popup != null && selected_popup.popup_visible)
+		{
+			draw_selected_ui_connections(selected_popup.popup);
+		}
+	}
+	
+	/**
+	 * @brief Draw lines from all the selected triggers to the given UI element.
+	 */
+	protected void draw_selected_ui_connections(Element@ element)
+	{
+		if(@element == null)
+			return;
+		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			TriggerHandlerData@ data = select_list[i];
+			draw_line_to_ui(data.trigger.x(), data.trigger.y(), element);
+		}
 	}
 	
 	protected void draw_line_to_ui(const float x, const float y, Element@ element)
