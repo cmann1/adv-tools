@@ -1,17 +1,15 @@
 #include '../../misc/DataSetMode.cpp';
 
-class TextTriggerHandlerData
+#include 'TriggerHandlerData.cpp';
+
+class TextTriggerHandlerData : TriggerHandlerData
 {
 	
-	entity@ trigger;
-	entity@ restore_data;
-	string trigger_type;
 	bool is_z_trigger;
 	
 	float base_scale;
 	float base_rotation;
 	
-	varstruct@ vars;
 	varvalue@ text_var;
 	varvalue@ hide_var;
 	varvalue@ colour_var;
@@ -38,12 +36,10 @@ class TextTriggerHandlerData
 	
 	TextTriggerHandlerData(entity@ trigger)
 	{
-		@this.trigger = trigger;
-		trigger_type = trigger.type_name();
+		super(trigger);
 		
 		is_z_trigger = trigger_type == TextTriggerType::ZTextProp;
 		
-		@vars = trigger.vars();
 		@text_var = vars.get_var(is_z_trigger ? 'text' : 'text_string');
 		
 		if(!is_z_trigger)
@@ -64,7 +60,7 @@ class TextTriggerHandlerData
 		read_vars();
 	}
 	
-	private void read_vars()
+	protected void read_vars() override
 	{
 		text = text_var.get_string();
 		
@@ -82,28 +78,6 @@ class TextTriggerHandlerData
 			_font = font_var.get_string();
 			_font_size = font_size_var.get_int32();
 		}
-	}
-	
-	void store_all()
-	{
-		if(@trigger == null)
-			return;
-		
-		if(@restore_data == null)
-		{
-			@restore_data = create_entity(trigger_type);
-		}
-		
-		copy_vars(trigger, restore_data);
-	}
-	
-	void restor_all()
-	{
-		if(@restore_data == null)
-			return;
-		
-		copy_vars(restore_data, trigger);
-		read_vars();
 	}
 	
 	bool hidden

@@ -11,40 +11,18 @@
 #include '../../../../lib/ui3/elements/Window.cpp';
 #include '../../../../lib/ui3/layouts/AnchorLayout.cpp';
 
-#include 'TextTriggerHandlerData.cpp';
 #include 'TriggerToolHandler.cpp';
+#include 'TextTriggerHandlerData.cpp';
 
 const string EMBED_spr_icon_text = SPRITES_BASE + 'icon_text.png';
-
-namespace TextTriggerType
-{
-	
-	const string None = 'none';
-	const string Normal = 'text_trigger';
-	const string ZTextProp = 'z_text_prop_trigger';
-	const string Mixed = 'mixed';
-	
-}
-
-enum TextTriggerHandlerState
-{
-	
-	Idle,
-	Rotating,
-	Scaling,
-	
-}
 
 class TextTriggerHandler : TriggerToolHandler
 {
 	
-	private entity@ trigger;
-	private string trigger_type = '';
-	private array<TextTriggerHandlerData@> select_list;
-	private TextTriggerHandlerData@ select_z_trigger;
-	private TextTriggerHandlerData@ select_normal_trigger;
-	
-	protected bool skip_next_selection;
+	/** The firsts selected z trigger if there is one. */
+	private TextTriggerHandlerData@ selected_z_trigger;
+	/** The firsts selected text trigger if there is one. */
+	private TextTriggerHandlerData@ selected_normal_trigger;
 	
 	private Container@ dummy_overlay;
 	private PopupOptions@ popup;
@@ -66,7 +44,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private float colour_swatch_open_alpha;
 	
-	private string editing_type = TextTriggerType::None;
+	private bool is_editing;
 	private const array<int>@ font_sizes;
 	private int selected_font_size;
 	
@@ -76,7 +54,6 @@ class TextTriggerHandler : TriggerToolHandler
 	/// prevent the Enter/text event being processed by the TextBox and overwrites the selected text.
 	private bool lock_input;
 	
-	private TextTriggerHandlerState state;
 	private float base_drag_value;
 	private float base_drag_dir_x, base_drag_dir_y;
 	
@@ -95,23 +72,13 @@ class TextTriggerHandler : TriggerToolHandler
 		return type == 'text_trigger' || type == 'z_text_prop_trigger';
 	}
 	
-	void select(entity@ trigger, const string &in type) override
+	protected void select_impl(entity@ trigger, const string &in type) override
 	{
-		if(skip_next_selection)
-		{
-			skip_next_selection = false;
-			return;
-		}
-		
-		update_selected_trigger(trigger, type);
+		select_trigger(trigger, true);
 	}
 	
-	void deselect() override
+	protected void deselect_impl() override
 	{
-		skip_next_selection = false;
-		update_selected_trigger(null);
-		state = Idle;
-		
 		if(lock_input)
 		{
 			unlock_input();
@@ -129,11 +96,12 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			stop_editing(true);
 		}
-		else if(@popup != null && !popup.popup_visible && state == Idle)
+		
+		if(@popup != null && !popup.popup_visible && state == TriggerHandlerState::Idle)
 		{
 			script.ui.show_tooltip(popup, dummy_overlay);
 		}
-		else if(@popup != null && popup.popup_visible && state != Idle)
+		else if(@popup != null && popup.popup_visible && state != TriggerHandlerState::Idle)
 		{
 			script.ui.hide_tooltip(popup);
 		}
@@ -144,7 +112,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			
 			if(!data.is_z_trigger && data.hidden)
 			{
@@ -152,7 +120,7 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 		}
 		
-		if(@popup != null && popup.popup_visible)
+		if(@popup != null && popup.popup_visible && select_list.length > 0)
 		{
 			update_toolbar_position();
 		}
@@ -160,21 +128,21 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void draw(const float sub_frame) override
 	{
-		if(state == Idle && select_list.length > 0)
+		if(state == TriggerHandlerState::Idle && select_list.length > 0)
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				TextTriggerHandlerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = selected(i);
 				draw_line_to_ui(data.trigger.x(), data.trigger.y(), popup.popup);
 			}
 		}
 		
-		if(state == Rotating || state == Scaling)
+		if(state == TriggerHandlerState::Rotating || state == TriggerHandlerState::Scaling)
 		{
 			float x1, y1, x2, y2;
-			script.world_to_hud(select_z_trigger.trigger.x(), select_z_trigger.trigger.y(), x1, y1, false);
+			script.world_to_hud(selected_z_trigger.trigger.x(), selected_z_trigger.trigger.y(), x1, y1, false);
 			script.world_to_hud(script.mouse.x, script.mouse.y, x2, y2, false);
-			script.ui.style.draw_line(x1, y1, x2, y2, 2, (state == Rotating ? 0x9c3edf : 0xd85d45) | 0xbb000000);
+			script.ui.style.draw_line(x1, y1, x2, y2, 2, (state == TriggerHandlerState::Rotating ? 0x9c3edf : 0xd85d45) | 0xbb000000);
 		}
 	}
 	
@@ -182,10 +150,15 @@ class TextTriggerHandler : TriggerToolHandler
 	// Methods
 	// //////////////////////////////////////////////////////////
 	
-	private bool is_editing
+	private bool sub_ui_active()
 	{
-		get const { return editing_type != TextTriggerType::None; }
+		if(@colour_swatch == null)
+			return false;
+		
+		return colour_swatch.open || layer_button.open;
 	}
+	
+	//
 	
 	/// Removes/unselects triggers that have been deleted.
 	private void check_triggers()
@@ -196,10 +169,16 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			for(int i = int(select_list.length) - 1; i >= 0; i--)
 			{
-				TextTriggerHandlerData@ data = @select_list[i];
+				TextTriggerHandlerData@ data = @selected(i);
 				if(data.trigger.destroyed())
 				{
 					select_list.removeAt(i);
+					
+					if(i == 0)
+					{
+						reset_primary_selected_trigger(true);
+					}
+					
 					changed = true;
 				}
 			}
@@ -210,21 +189,22 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 			else if(changed)
 			{
-				update_text_properties();
+				update_properties();
 			}
 		}
 		
-		if(@trigger != null && trigger.destroyed())
+		if(@selected_trigger != null && selected_trigger.destroyed())
 		{
 			if(select_list.length > 0)
 			{
-				@select_z_trigger = select_list[0];
-				@trigger = select_z_trigger.trigger;
-				@script.editor.selected_trigger = trigger;
+				@selected_z_trigger = selected(0);
+				@selected_trigger = selected_z_trigger.trigger;
+				@script.editor.selected_trigger = selected_trigger;
 			}
 			else
 			{
-				update_selected_trigger(null);
+				//update_selected_trigger(null);
+				select_trigger(null);
 			}
 		}
 	}
@@ -232,10 +212,10 @@ class TextTriggerHandler : TriggerToolHandler
 	/// Handle shortcut keys like Escape and Enter.
 	private void check_keys()
 	{
-		if(state == Idle)
+		if(state == TriggerHandlerState::Idle)
 		{
 			// Start editing with Enter.
-			if(@trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
+			if(@selected_trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
 			{
 				lock_input = true;
 				start_editing();
@@ -256,7 +236,7 @@ class TextTriggerHandler : TriggerToolHandler
 		}
 		
 		// Consume Enter to prevent the default editing.
-		if(@trigger != null && !script.ui_focus && !sub_ui_active() && script.return_press)
+		if(@selected_trigger != null && !script.ui_focus && !sub_ui_active() && script.return_press)
 		{
 			if(!script.ctrl.down && script.return_press)
 			{
@@ -269,7 +249,7 @@ class TextTriggerHandler : TriggerToolHandler
 	{
 		bool changed = false;
 		
-		if(state == Idle)
+		if(state == TriggerHandlerState::Idle)
 		{
 			// Multi select
 			if(select_list.length > 0 && !script.alt.down && script.shift.down && script.mouse.left_press)
@@ -279,18 +259,11 @@ class TextTriggerHandler : TriggerToolHandler
 				entity@ new_trigger = pick_trigger();
 				if(@new_trigger != null)
 				{
-					if(is_editing)
-					{
-						start_editing(new_trigger);
-					}
-					else
-					{
-						try_update_selection(new_trigger);
-					}
+					select_trigger(new_trigger);
 				}
 			}
 			
-			if(@select_z_trigger != null)
+			if(@selected_z_trigger != null)
 			{
 				if(script.alt.down && script.mouse.left_press)
 				{
@@ -302,12 +275,12 @@ class TextTriggerHandler : TriggerToolHandler
 				}
 			}
 		}
-		else if(state == Rotating)
+		else if(state == TriggerHandlerState::Rotating)
 		{
 			rotate_step();
 			script.input.key_clear_gvb(GVB::LeftClick);
 		}
-		else if(state == Scaling)
+		else if(state == TriggerHandlerState::Scaling)
 		{
 			scale_step();
 			script.input.key_clear_gvb(GVB::RightClick);
@@ -317,17 +290,17 @@ class TextTriggerHandler : TriggerToolHandler
 	private void rotate_start()
 	{
 		base_drag_value = atan2(
-			script.mouse.y - select_z_trigger.trigger.y(),
-			script.mouse.x - select_z_trigger.trigger.x());
+			script.mouse.y - selected_z_trigger.trigger.y(),
+			script.mouse.x - selected_z_trigger.trigger.x());
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			data.base_rotation = data.rotation;
 		}
 		
 		script.input.key_clear_gvb(GVB::LeftClick);
-		state = Rotating;
+		state = TriggerHandlerState::Rotating;
 	}
 	
 	private void rotate_step()
@@ -335,15 +308,15 @@ class TextTriggerHandler : TriggerToolHandler
 		float offset = shortest_angle(
 			base_drag_value,
 			atan2(
-				script.mouse.y - select_z_trigger.trigger.y(),
-				script.mouse.x - select_z_trigger.trigger.x()));
+				script.mouse.y - selected_z_trigger.trigger.y(),
+				script.mouse.x - selected_z_trigger.trigger.x()));
 		script.snap(offset, offset, false);
 		
 		bool changed = false;
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			const int base_val = data.rotation;
 			data.rotation = int(normalize_degress(data.base_rotation + offset * RAD2DEG));
 			
@@ -356,7 +329,7 @@ class TextTriggerHandler : TriggerToolHandler
 		if(changed && is_editing)
 		{
 			ignore_events = true;
-			rotation_wheel.degrees = select_z_trigger.rotation;
+			rotation_wheel.degrees = selected_z_trigger.rotation;
 			ignore_events = false;
 		}
 		
@@ -372,47 +345,47 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				TextTriggerHandlerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = selected(i);
 				data.rotation = int(data.base_rotation);
 			}
 		}
 		
-		state = Idle;
+		state = TriggerHandlerState::Idle;
 	}
 	
 	private void scale_start()
 	{
 		base_drag_value = distance(
 			script.mouse.x, script.mouse.y,
-			select_z_trigger.trigger.x(), select_z_trigger.trigger.y());
-		base_drag_dir_x = script.mouse.x - select_z_trigger.trigger.x();
-		base_drag_dir_y = script.mouse.y - select_z_trigger.trigger.y();
+			selected_z_trigger.trigger.x(), selected_z_trigger.trigger.y());
+		base_drag_dir_x = script.mouse.x - selected_z_trigger.trigger.x();
+		base_drag_dir_y = script.mouse.y - selected_z_trigger.trigger.y();
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			data.base_scale = data.scale;
 		}
 		
 		script.input.key_clear_gvb(GVB::RightClick);
-		state = Scaling;
+		state = TriggerHandlerState::Scaling;
 	}
 	
 	private void scale_step()
 	{
 		const float dir = sign(dot(
 			base_drag_dir_x, base_drag_dir_y,
-			script.mouse.x - select_z_trigger.trigger.x(), script.mouse.y - select_z_trigger.trigger.y()));
+			script.mouse.x - selected_z_trigger.trigger.x(), script.mouse.y - selected_z_trigger.trigger.y()));
 		const float scale =
 			distance(
 				script.mouse.x, script.mouse.y,
-				select_z_trigger.trigger.x(), select_z_trigger.trigger.y()) /
+				selected_z_trigger.trigger.x(), selected_z_trigger.trigger.y()) /
 			base_drag_value * dir;
 		bool changed = false;
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			const float base_val = data.scale;
 			data.scale = data.base_scale * scale;
 			
@@ -425,7 +398,7 @@ class TextTriggerHandler : TriggerToolHandler
 		if(changed && is_editing)
 		{
 			ignore_events = true;
-			scale_slider.value = select_z_trigger.scale;
+			scale_slider.value = selected_z_trigger.scale;
 			ignore_events = false;
 		}
 		
@@ -441,54 +414,53 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				TextTriggerHandlerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = selected(i);
 				data.scale = data.base_scale;
 			}
 		}
 		
-		state = Idle;
+		state = TriggerHandlerState::Idle;
 	}
 	
 	//
 	
-	private bool sub_ui_active()
+	private TextTriggerHandlerData@ selected(const int index)
 	{
-		if(@colour_swatch == null)
-			return false;
-		
-		return colour_swatch.open || layer_button.open;
+		return cast<TextTriggerHandlerData@>(select_list[index >= 0 ? index : select_list.length - 1]);
 	}
 	
-	private void update_selected_trigger(entity@ trigger, const string &in type='')
+	protected TriggerHandlerData@ create_handler_data(entity@ trigger) override
 	{
-		if(@trigger == @this.trigger)
-			return;
-		
-		if(@trigger != null)
+		return TextTriggerHandlerData(trigger);
+	}
+	
+	protected void on_selection_changed(const bool primary, const bool added, const bool removed) override
+	{
+		if(is_editing && select_list.length == 0)
 		{
-			for(uint i = 0; i < select_list.length; i++)
-			{
-				TextTriggerHandlerData@ data = select_list[i];
-				if(!data.trigger.is_same(trigger))
-					continue;
-				
-				select_list.removeAt(i);
-				select_list.insertAt(0, data);
-				reset_primary_trigger();
-				return;
-			}
+			stop_editing(true);
 		}
 		
-		select_list.resize(0);
-		@select_z_trigger = null;
-		@select_normal_trigger = null;
+		if(primary && !added && is_editing)
+		{
+			update_properties();
+			return;
+		}
 		
-		@this.trigger = trigger;
-		trigger_type = type == '' && @trigger != null ? trigger.type_name() : type;
+		if(!primary)
+		{
+			if(is_editing)
+			{
+				update_properties();
+			}
+			else
+			{
+				update_z_trigger(removed);
+			}
+			return;
+		}
 		
-		try_update_selection(trigger);
-		
-		if(@trigger != null)
+		if(@selected_trigger != null)
 		{
 			if(@popup == null)
 			{
@@ -514,121 +486,79 @@ class TextTriggerHandler : TriggerToolHandler
 			stop_editing(true);
 		}
 		
-		update_z_trigger();
+		update_z_trigger(true);
 	}
 	
 	private void update_z_trigger(const bool full=false)
 	{
+		const bool had_z_trigger = @selected_z_trigger != null;
+		const bool had_normal_trigger = @selected_normal_trigger != null;
+		
 		if(full)
 		{
-			@select_z_trigger = null;
-			@select_normal_trigger = null;
+			@selected_z_trigger = null;
+			@selected_normal_trigger = null;
 			
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				TextTriggerHandlerData@ data = select_list[i];
+				TextTriggerHandlerData@ data = selected(i);
 				
-				if(@select_z_trigger == null && data.is_z_trigger)
+				if(@selected_z_trigger == null && data.is_z_trigger)
 				{
-					@select_z_trigger = data;
+					@selected_z_trigger = data;
 				}
-				if(@select_normal_trigger == null && !data.is_z_trigger)
+				if(@selected_normal_trigger == null && !data.is_z_trigger)
 				{
-					@select_normal_trigger = data;
+					@selected_normal_trigger = data;
 				}
 				
-				if(@select_z_trigger != null && @select_normal_trigger !=  null)
+				if(@selected_z_trigger != null && @selected_normal_trigger !=  null)
 					break;
 			}
-			
-			return;
 		}
-		
-		if(@trigger == null)
-			return;
-		
-		if(@select_z_trigger == null && trigger_type == TextTriggerType::ZTextProp)
+		else if(@selected_trigger == null)
 		{
-			@select_z_trigger = TextTriggerHandlerData(trigger);
+			@selected_z_trigger = null;
+			@selected_normal_trigger = null;
 		}
-		else if(@select_normal_trigger == null && trigger_type == TextTriggerType::Normal)
+		else
 		{
-			@select_normal_trigger = TextTriggerHandlerData(trigger);
-		}
-	}
-	
-	/* Returns:
-	 *	 0 - Nothing changed.
-	 *	 1 - Added to selection.
-	 *	-1 - Removed from selection. */
-	private int try_update_selection(entity@ new_trigger)
-	{
-		skip_next_selection = false;
-		
-		if(@new_trigger == null)
-			return 0;
-		if(select_list.length == 1 && new_trigger.is_same(select_list[0].trigger))
-			return 0;
-		
-		for(uint i = 0; i < select_list.length; i++)
-		{
-			TextTriggerHandlerData@ data = select_list[i];
-			if(new_trigger.is_same(data.trigger))
+			TextTriggerHandlerData@ data = selected(-1);
+			if(@selected_z_trigger == null && data.trigger_type == TextTriggerType::ZTextProp)
 			{
-				select_list.removeAt(i);
-				
-				// Update main selected trigger.
-				if(new_trigger.is_same(trigger))
-				{
-					reset_primary_trigger();
-				}
-				
-				return -1;
+				@selected_z_trigger = data;
+			}
+			else if(@selected_normal_trigger == null && data.trigger_type == TextTriggerType::Normal)
+			{
+				@selected_normal_trigger = data;
 			}
 		}
 		
-		TextTriggerHandlerData@ data = TextTriggerHandlerData(new_trigger);
-		select_list.insertLast(data);
-		return 1;
-	}
-	
-	private void reset_primary_trigger()
-	{
-		if(select_list.length == 0)
-			return;
-		
-		TextTriggerHandlerData@ data = select_list[0];
-		@trigger = data.trigger;
-		trigger_type = data.trigger_type;
-		update_z_trigger(true);
-		
-		skip_next_selection = true;
-		@script.editor.selected_trigger = trigger;
+		if(had_z_trigger != (@selected_z_trigger != null) || had_normal_trigger != (@selected_normal_trigger != null))
+		{
+			update_properties();
+		}
 	}
 	
 	private void start_editing(entity@ trigger=null)
 	{
-		if(@trigger != null && try_update_selection(trigger) == -1)
-		{
-			update_text_properties();
-			return;
-		}
-		
 		const bool is_window_created = create_window();
 		
 		if(is_editing)
 		{
-			select_list[select_list.length - 1].store_all();
+			selected(select_list.length - 1).store_all();
 		}
 		else
 		{
+			is_editing = true;
+			
 			for(uint i = 0; i < select_list.length; i++)
 			{
-				select_list[i].store_all();
+				selected(i).store_all();
 			}
 		}
 		
-		update_text_properties();
+		update_properties();
 		
 		if(is_window_created)
 		{
@@ -653,7 +583,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			
 			if(!accept)
 			{
@@ -661,7 +591,7 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 		}
 		
-		editing_type = TextTriggerType::None;
+		is_editing = false;
 		
 		if(update_ui)
 		{
@@ -942,7 +872,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			x += data.trigger.x();
 			y += data.trigger.y();
 		}
@@ -968,27 +898,26 @@ class TextTriggerHandler : TriggerToolHandler
 		dummy_overlay.y = y1;
 		dummy_overlay.width = x2 - x1;
 		dummy_overlay.height = y2 - y1;
-		//dummy_overlay.x = x1;
-		//dummy_overlay.y = y1;
-		//dummy_overlay.width = 0;
-		//dummy_overlay.height = 0;
 		dummy_overlay.visible = true;
 		dummy_overlay.force_calculate_bounds();
 		
 		popup.interactable = !script.space.down;
 	}
 	
-	private void update_text_properties()
+	private void update_properties()
 	{
+		if(!is_editing)
+			return;
+		
 		// 
 		// Check properties
 		// 
 		
-		TextTriggerHandlerData@ data = select_list[0];
-		editing_type = data.trigger_type;
+		TextTriggerHandlerData@ data = selected(0);
+		string editing_type = data.trigger_type;
 		
-		@select_z_trigger = editing_type == TextTriggerType::ZTextProp ? data : null;
-		@select_normal_trigger = editing_type == TextTriggerType::Normal ? data : null;
+		@selected_z_trigger = editing_type == TextTriggerType::ZTextProp ? data : null;
+		@selected_normal_trigger = editing_type == TextTriggerType::Normal ? data : null;
 		
 		bool same_text = true;
 		bool same_hidden = true;
@@ -1002,8 +931,8 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 1; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data0 = select_list[i - 1];
-			TextTriggerHandlerData@ data1 = select_list[i];
+			TextTriggerHandlerData@ data0 = selected(i - 1);
+			TextTriggerHandlerData@ data1 = selected(i);
 			const bool is_0_normal = data0.trigger_type == TextTriggerType::Normal;
 			const bool is_1_normal = data1.trigger_type == TextTriggerType::Normal;
 			const bool is_0_z_text = !is_0_normal;
@@ -1011,9 +940,9 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			if(is_1_z_text)
 			{
-				if(@select_z_trigger == null)
+				if(@selected_z_trigger == null)
 				{
-					@select_z_trigger = data1;
+					@selected_z_trigger = data1;
 				}
 				
 				if(is_0_z_text)
@@ -1051,9 +980,9 @@ class TextTriggerHandler : TriggerToolHandler
 			
 			if(is_1_normal)
 			{
-				if(@select_normal_trigger == null)
+				if(@selected_normal_trigger == null)
 				{
-					@select_normal_trigger = data1;
+					@selected_normal_trigger = data1;
 				}
 				
 				if(same_hidden && is_0_normal && data0.hidden != data1.hidden)
@@ -1086,15 +1015,15 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		ignore_events = true;
 		
-		const string types = @select_z_trigger != null && @select_normal_trigger == null ? 'Z Text' : 'Text';
+		const string types = @selected_z_trigger != null && @selected_normal_trigger == null ? 'Z Text' : 'Text';
 		window.title = 'Edit ' + types + ' Trigger' + (select_list.length > 1 ? 's' : '') +
 			(select_list.length == 1 ? ' [' + data.trigger.id() + ']' : '');
 		
-		create_visible_checkbox(@select_normal_trigger != null);
-		if(@select_normal_trigger != null)
+		create_visible_checkbox(@selected_normal_trigger != null);
+		if(@selected_normal_trigger != null)
 		{
 			visible_checkbox.state = same_hidden
-				? (!select_normal_trigger.hidden ? CheckboxState::On : CheckboxState::Off)
+				? (!selected_normal_trigger.hidden ? CheckboxState::On : CheckboxState::Off)
 				: CheckboxState::Indeterminate;
 		}
 		
@@ -1103,26 +1032,26 @@ class TextTriggerHandler : TriggerToolHandler
 		text_box.has_colour = !same_text;
 		text_box.lock_input = lock_input;
 		
-		if(@select_z_trigger != null)
+		if(@selected_z_trigger != null)
 		{
 			create_z_properties_container();
 			
 			const float multi_alpha = 0.5;
 			
-			colour_swatch.colour = select_z_trigger.colour;
+			colour_swatch.colour = selected_z_trigger.colour;
 			colour_swatch.alpha = same_colour ? 1.0 : multi_alpha;
 			
-			layer_select.set_selected_layer(same_layer ? select_z_trigger.layer : -1, false, true);
-			layer_select.set_selected_sub_layer(same_sub_layer ? select_z_trigger.sub_layer : -1, false, true);
+			layer_select.set_selected_layer(same_layer ? selected_z_trigger.layer : -1, false, true);
+			layer_select.set_selected_sub_layer(same_sub_layer ? selected_z_trigger.sub_layer : -1, false, true);
 			
-			rotation_wheel.degrees = select_z_trigger.rotation;
+			rotation_wheel.degrees = selected_z_trigger.rotation;
 			rotation_wheel.alpha = same_rotation ? 1.0 : multi_alpha;
 			
-			scale_slider.value = select_z_trigger.scale;
+			scale_slider.value = selected_z_trigger.scale;
 			scale_slider.alpha = same_scale ? 1.0 : multi_alpha;
 			
-			selected_font_size = select_z_trigger.font_size;
-			font_select.selected_value = select_z_trigger.font;
+			selected_font_size = selected_z_trigger.font_size;
+			font_select.selected_value = selected_z_trigger.font;
 			font_select.alpha = same_font ? 1.0 : multi_alpha;
 			font_size_select.alpha = same_font_size ? 1.0 : multi_alpha;
 			font_select.allow_reselect = !same_font;
@@ -1237,8 +1166,7 @@ class TextTriggerHandler : TriggerToolHandler
 		const string text = text_box.text;
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
-			data.text = text;
+			selected(i).text = text;
 		}
 		
 		text_box.has_colour = false;
@@ -1256,7 +1184,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			select_list[i].hidden = !visible_checkbox.checked;
+			selected(i).hidden = !visible_checkbox.checked;
 		}
 	}
 	
@@ -1280,7 +1208,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			select_list[i].set_colour(colour_swatch.colour, mode);
+			selected(i).set_colour(colour_swatch.colour, mode);
 		}
 		
 		if(!opened)
@@ -1302,7 +1230,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			TextTriggerHandlerData@ data = select_list[i];
+			TextTriggerHandlerData@ data = selected(i);
 			
 			if(opened || layer_button.layer_changed)
 			{
@@ -1323,7 +1251,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			select_list[i].rotation = int(rotation_wheel.degrees);
+			selected(i).rotation = int(rotation_wheel.degrees);
 		}
 		
 		rotation_wheel.alpha = 1.0;
@@ -1336,7 +1264,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			select_list[i].scale = scale_slider.value;
+			selected(i).scale = scale_slider.value;
 		}
 		
 		scale_slider.alpha = 1.0;
@@ -1349,7 +1277,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			select_list[i].font = font_select.selected_value;
+			selected(i).font = font_select.selected_value;
 		}
 		
 		ignore_next_font_size_update = true;
@@ -1370,7 +1298,7 @@ class TextTriggerHandler : TriggerToolHandler
 		const int new_size = font_sizes[font_size_select.selected_index];
 		for(uint i = 0; i < select_list.length; i++)
 		{
-			select_list[i].font_size = new_size;
+			selected(i).font_size = new_size;
 		}
 		
 		if(!ignore_next_font_size_update)

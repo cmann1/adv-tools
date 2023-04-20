@@ -1,8 +1,20 @@
+#include 'TriggerHandlerData.cpp';
+#include 'TriggerHandlerTypes.cpp';
+
 class TriggerToolHandler
 {
 	
-	AdvToolScript@ script;
-	ExtendedTriggerTool@ tool;
+	protected AdvToolScript@ script;
+	protected ExtendedTriggerTool@ tool;
+	
+	protected int state = TriggerHandlerState::Idle;
+	
+	/* The primary selected trigger. */
+	protected entity@ selected_trigger;
+	/* The primary selected trigger type. */
+	protected string selected_type = '';
+	/* The list of all selected triggers. */
+	protected array<TriggerHandlerData@> select_list;
 	
 	TriggerToolHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
@@ -21,9 +33,20 @@ class TriggerToolHandler
 	
 	void editor_unloaded() {}
 	
-	void select(entity@ trigger, const string &in type) {}
+	void select(entity@ trigger, const string &in type) final
+	{
+		select_impl(trigger, type);
+	}
+	void select_impl(entity@ trigger, const string &in type) { }
 	
-	void deselect() {}
+	void deselect() final
+	{
+		state = TriggerHandlerState::Idle;
+		select_trigger(null);
+		
+		deselect_impl();
+	}
+	void deselect_impl() { }
 	
 	void step() {}
 	
@@ -31,6 +54,126 @@ class TriggerToolHandler
 	
 	// //////////////////////////////////////////////////////////
 	// Methods
+	// //////////////////////////////////////////////////////////
+	
+	/**
+	 * @brief Must be overriden to return the correct TriggerHandlerData subclass.
+	 * @param trigger
+	 * @return 
+	 */
+	protected TriggerHandlerData@ create_handler_data(entity@ trigger)
+	{
+		return TriggerHandlerData(trigger);
+	}
+	
+	/**
+	 * @param new_trigger Set to null to deselect all.
+	 * @param primary Set when the built in selected trigger has changed.
+	 * @return 
+	 */
+	protected int select_trigger(entity@ new_trigger, bool primary=false)
+	{
+		if(@new_trigger == null)
+		{
+			primary = true;
+		}
+		
+		// Don't allow deselecting if this is the only selected trigger.
+		const bool can_deslect = select_list.length > 1;
+		if(@new_trigger != null && (primary || can_deslect))
+		{
+			for(uint i = 0; i < select_list.length; i++)
+			{
+				TriggerHandlerData@ data = select_list[i];
+				
+				// The built in selected trigger has changed.
+				// If it is already part of the selection, make it the new primary selected trigger.
+				// Other wise start a new selection.
+				if(primary)
+				{
+					if(!data.trigger.is_same(new_trigger))
+						continue;
+					
+					if(i > 0)
+					{
+						select_list.removeAt(i);
+						select_list.insertAt(0, data);
+						reset_primary_selected_trigger(false);
+					}
+					
+					return 0;
+				}
+				// Or remove from selection.
+				else if(new_trigger.is_same(data.trigger))
+				{
+					select_list.removeAt(i);
+					
+					// The primary trigger was deselected.
+					if(i == 0)
+					{
+						reset_primary_selected_trigger(true);
+					}
+					else
+					{
+						on_selection_changed(false, false, true);
+					}
+					
+					return -1;
+				}
+			}
+		}
+		
+		if(primary)
+		{
+			select_list.resize(0);
+			@selected_trigger = new_trigger;
+			selected_type = @selected_trigger != null ? selected_trigger.type_name() : '';
+		}
+		
+		if(@new_trigger != null)
+		{
+			TriggerHandlerData@ data = create_handler_data(new_trigger);
+			select_list.insertLast(data);
+		}
+		
+		on_selection_changed(primary, @new_trigger != null, false);
+		
+		return 1;
+	}
+	
+	/**
+	 * @brief Called after the selection changes. Makes the first selected trigger the primary.
+	 * @param removed
+	 */
+	protected void reset_primary_selected_trigger(const bool removed)
+	{
+		if(select_list.length == 0)
+		{
+			@selected_trigger = null;
+			selected_type = '';
+			on_selection_changed(false, false, true);
+			return;
+		}
+		
+		TriggerHandlerData@ data = select_list[0];
+		@selected_trigger = data.trigger;
+		selected_type = data.trigger_type;
+		
+		on_selection_changed(true, false, removed);
+		
+		@script.editor.selected_trigger = selected_trigger;
+	}
+	
+	/**
+	 * @brief Override to be notified when the selection changes.
+	 * @param primary Has the primary selected trigger changed.
+	 * @param added Has a trigger been added to the selection.
+	 * @param removed Has a trigger been removed from the selection.
+	 */
+	protected void on_selection_changed(const bool primary, const bool added, const bool removed) { }
+	
+	// //////////////////////////////////////////////////////////
+	// Utility
 	// //////////////////////////////////////////////////////////
 	
 	protected void draw_line_to_ui(const float x, const float y, Element@ element)
