@@ -16,8 +16,13 @@ class TriggerToolHandler
 	/* The list of all selected triggers. */
 	protected array<TriggerHandlerData@> select_list;
 	
+	protected bool is_editing;
+	
 	protected PopupOptions@ selected_popup;
 	protected Container@ selected_popup_dummy_overlay;
+	
+	protected Button@ edit_button;
+	protected Window@ edit_window;
 	
 	TriggerToolHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
@@ -56,7 +61,7 @@ class TriggerToolHandler
 	void draw(const float sub_frame) { }
 	
 	// //////////////////////////////////////////////////////////
-	// Methods
+	// Selection
 	// //////////////////////////////////////////////////////////
 	
 	/**
@@ -224,6 +229,62 @@ class TriggerToolHandler
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) { }
 	
 	/**
+	 * @brief Some standard logic for editing multiple triggers.
+	 */
+	protected void do_selection_change_for_editing(
+		const bool show_popup,
+		const bool primary, const bool added, const bool removed)
+	{
+		if(is_editing && select_list.length == 0)
+		{
+			stop_editing(true);
+		}
+		
+		if(primary && !added && is_editing)
+		{
+			update_edit_properties();
+			return;
+		}
+		
+		if(!primary && select_list.length != 0)
+		{
+			if(is_editing)
+			{
+				update_edit_properties();
+			}
+			return;
+		}
+		
+		if(@selected_trigger != null)
+		{
+			if(@selected_popup == null)
+			{
+				create_selected_popup();
+			}
+			
+			if(show_popup)
+			{
+				show_selected_popup();
+			}
+			
+			if(is_editing)
+			{
+				stop_editing(true, false);
+				start_editing();
+			}
+		}
+		else
+		{
+			if(show_popup)
+			{
+				show_selected_popup(false);
+			}
+			
+			stop_editing(true);
+		}
+	}
+	
+	/**
 	 * @brief Stores trigger data before editing so changes can be reverted.
 	 * @param only_latest If true only the last selected trigger's data will be stored.
 	 *        Useful if e.g. store_all_triggers_data() has already been called.
@@ -257,15 +318,39 @@ class TriggerToolHandler
 		}
 	}
 	
-	//
-	
 	/**
-	 * @brief Create a popup used to display e.g. a toolbar above the selected trigger.
-	 * @param content
+	 * @brief 
+	 * @return True if a trigger was either added to or removed from the selection.
 	 */
-	protected void create_selected_popup(Element@ content)
+	protected bool check_mouse_multi_select()
+	{
+		if(!has_selection || script.alt.down || !script.shift.down || !script.mouse.left_press)
+			return false;
+		
+		script.input.key_clear_gvb(GVB::LeftClick);
+		
+		entity@ new_trigger = pick_trigger();
+		if(@new_trigger != null)
+		{
+			select_trigger(new_trigger);
+			return true;
+		}
+		
+		return false;
+	}
+	
+	// //////////////////////////////////////////////////////////
+	// Selection Popup
+	// //////////////////////////////////////////////////////////
+	
+	private void create_selected_popup()
 	{
 		if(@selected_popup != null)
+			return;
+		
+		Element@ content = create_selected_popup_content();
+		
+		if(@content == null)
 			return;
 		
 		@selected_popup_dummy_overlay = Container(script.ui);
@@ -281,6 +366,15 @@ class TriggerToolHandler
 		selected_popup.border_colour = 0;
 		selected_popup.shadow_colour = 0;
 		selected_popup.background_blur = false;
+	}
+	
+	/**
+	 * @brief Override to create the content for the selected popup.
+	 */
+	protected Element@ create_selected_popup_content()
+	{
+		puts('Warning: create_selected_popup_content not implemented.');
+		return null;
 	}
 	
 	/**
@@ -365,6 +459,123 @@ class TriggerToolHandler
 		selected_popup_dummy_overlay.force_calculate_bounds();
 		
 		selected_popup.interactable = !script.space.down;
+	}
+	
+	// //////////////////////////////////////////////////////////
+	// Editing
+	// //////////////////////////////////////////////////////////
+	
+	/**
+	 * @brief Checks the Enter and Escape to start and stop editing.
+	 * @return 0 if nothing happened, 1, if editing was started, and -1 if editing was cancelled.
+	 */
+	protected int check_edit_keys()
+	{
+		// Start editing with Enter.
+		if(!is_editing && @selected_trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
+		{
+			start_editing();
+			return 1;
+		}
+		
+		// Accept/Cancel with Enter/Escape when the textbox isn't focused.
+		if(is_editing && script.scene_focus && !sub_ui_active())
+		{
+			if(script.escape_press)
+			{
+				stop_editing(false);
+				return -1;
+			}
+			else if(script.ctrl.down && script.return_press)
+			{
+				stop_editing(true);
+				return -1;
+			}
+		}
+		
+		return 1;
+	}
+	
+	/**
+	 * @brief Override to determine of a sub component is active, e.g. a colour picker or layer button.
+	 */
+	protected bool sub_ui_active()
+	{
+		return false;
+	}
+	
+	protected void start_editing()
+	{
+		const bool is_window_created = @edit_window == null;
+		if(is_window_created)
+		{
+			create_edit_window();
+			script.ui.add_child(edit_window);
+			script.window_manager.register_element(edit_window);
+		}
+		
+		// Already editing - assume a trigger was added to the selection so just store the last one.
+		store_all_triggers_data(is_editing);
+		
+		is_editing = true;
+		update_edit_properties();
+		
+		if(is_window_created)
+		{
+			edit_window.fit_to_contents(true);
+			edit_window.centre();
+			script.window_manager.force_immediate_reposition(edit_window);
+		}
+		
+		if(@edit_button != null)
+		{
+			edit_button.selected = true;
+		}
+		
+		edit_window.show();
+		edit_window.parent.move_to_front(edit_window);
+	}
+	
+	protected void stop_editing(const bool accept, const bool update_ui=true)
+	{
+		if(!is_editing)
+			return;
+		
+		if(!accept)
+		{
+			restore_all_triggers_data();
+		}
+		
+		is_editing = false;
+		
+		if(update_ui)
+		{
+			if(@edit_button != null)
+			{
+				edit_button.selected = false;
+			}
+			
+			if(@edit_window != null)
+			{
+				edit_window.hide(script.in_editor);
+			}
+		}
+	}
+	
+	/**
+	 * @brief Override to create the edit window.
+	 */
+	protected void create_edit_window()
+	{
+		puts('Warning: create_edit_window not implemented.');
+	}
+	
+	/**
+	 * @brief Override to update the edit controls.
+	 */
+	protected void update_edit_properties()
+	{
+		
 	}
 	
 	// //////////////////////////////////////////////////////////

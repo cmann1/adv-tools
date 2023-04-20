@@ -7,9 +7,10 @@ class FogTriggerHandler : TriggerToolHandler
 {
 	
 	private Toolbar@ toolbar;
-	private Button@ adjust_button;
 	
-	private bool is_adjusting;
+	private Window@ window;
+	private ColourSwatch@ override_colour_swatch;
+	private Checkbox@ override_colour_checkbox;
 	
 	FogTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
@@ -49,48 +50,17 @@ class FogTriggerHandler : TriggerToolHandler
 	// Methods
 	// //////////////////////////////////////////////////////////
 	
-	// TODO: Implement
+	
 	private void check_keys()
 	{
-		// TODO: Toggle
-		// TODO: Might also have to check for mouse dragging sliders etc.
-		// Toggle editing with Enter and Escape.
-		//if(@selected_trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
-		//{
-		//	start_adjusting();
-		//}
-		//
-		//// Accept/Cancel with Enter/Escape.
-		//if(script.scene_focus && !sub_ui_active())
-		//{
-		//	if(script.escape_press)
-		//	{
-		//		stop_adjusting(false);
-		//	}
-		//	else if(script.ctrl.down && script.return_press)
-		//	{
-		//		stop_adjusting(true);
-		//	}
-		//}
+		check_edit_keys();
 	}
 	
 	private void check_mouse()
 	{
-		bool changed = false;
-		
 		if(state == TriggerHandlerState::Idle)
 		{
-			// Multi select
-			if(has_selection && script.shift.down && script.mouse.left_press)
-			{
-				script.input.key_clear_gvb(GVB::LeftClick);
-				
-				entity@ new_trigger = pick_trigger();
-				if(@new_trigger != null)
-				{
-					select_trigger(new_trigger);
-				}
-			}
+			check_mouse_multi_select();
 		}
 	}
 	
@@ -108,80 +78,14 @@ class FogTriggerHandler : TriggerToolHandler
 	
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) override
 	{
-		if(is_adjusting && select_list.length == 0)
-		{
-			stop_adjusting(true);
-		}
-		
-		if(primary && !added && is_adjusting)
-		{
-			update_properties();
-			return;
-		}
-		
-		if(!primary && select_list.length != 0)
-		{
-			if(is_adjusting)
-			{
-				update_properties();
-			}
-			return;
-		}
-		
-		if(@selected_trigger != null)
-		{
-			if(@selected_popup == null)
-			{
-				create_toolbar();
-			}
-			
-			show_selected_popup();
-			
-			if(is_adjusting)
-			{
-				stop_adjusting(true, false);
-				start_adjusting();
-			}
-		}
-		else
-		{
-			show_selected_popup(false);
-			stop_adjusting(true);
-		}
-	}
-	
-	private void start_adjusting()
-	{
-		
-	}
-	
-	private void stop_adjusting(const bool accept, const bool update_ui=true)
-	{
-		if(!is_adjusting)
-			return;
-		
-		is_adjusting = true;
-		
-		if(!accept)
-		{
-			restore_all_triggers_data();
-		}
-		
-		//if(update_ui)
-		//{
-		//	edit_button.selected = false;
-		//	if(@window != null)
-		//	{
-		//		window.hide(script.in_editor);
-		//	}
-		//}
+		do_selection_change_for_editing(true, primary, added, removed);
 	}
 	
 	// //////////////////////////////////////////////////////////
 	// UI
 	// //////////////////////////////////////////////////////////
 	
-	private void create_toolbar()
+	protected Element@ create_selected_popup_content() override
 	{
 		UI@ ui = script.ui;
 		Style@ style = ui.style;
@@ -189,21 +93,103 @@ class FogTriggerHandler : TriggerToolHandler
 		@toolbar = Toolbar(ui, false, true);
 		toolbar.name = 'TriggerToolFogToolbar';
 		
-		@adjust_button = toolbar.create_button(SPRITE_SET, 'fog_adjust', Settings::IconSize, Settings::IconSize);
-		adjust_button.selectable = true;
-		adjust_button.mouse_click.on(EventCallback(on_toolbar_button_click));
+		@edit_button = script.create_toolbar_button(toolbar, 'adjust', 'fog_adjust', 'Adjust Colours');
+		edit_button.selectable = true;
+		edit_button.mouse_click.on(EventCallback(on_toolbar_button_click));
 		
 		toolbar.fit_to_contents(true);
 		
-		create_selected_popup(toolbar);
+		return toolbar;
 	}
 	
-	private void update_properties()
+	protected void create_edit_window() override
 	{
-		if(!is_adjusting)
+		UI@ ui = script.ui;
+		Style@ style = ui.style;
+		
+		@edit_window = Window(ui, 'Adjust Fog');
+		edit_window.resizable = true;
+		edit_window.name = 'FogToolTextProperties';
+		edit_window.set_icon(SPRITE_SET, 'fog_adjust', Settings::IconSize, Settings::IconSize);
+		edit_window.x = 200;
+		edit_window.y = 20;
+		edit_window.min_width = 450;
+		edit_window.min_height = 350;
+		edit_window.width  = edit_window.min_width;
+		edit_window.height = edit_window.min_height;
+		@edit_window.layout = AnchorLayout(ui).set_padding(0);
+		edit_window.close.on(EventCallback(on_cancel_click));
+		
+		// Override colour swatch
+		
+		@override_colour_swatch = ColourSwatch(ui);
+		@override_colour_swatch.tooltip = PopupOptions(ui, 'Override colour');
+		override_colour_swatch.change.on(EventCallback(on_override_colour_change));
+		override_colour_swatch.activate.on(EventCallback(on_override_colour_change));
+		edit_window.add_child(override_colour_swatch);
+		
+		@override_colour_checkbox = Checkbox(ui);
+		override_colour_checkbox.checked = true;
+		override_colour_checkbox.anchor_left.after(override_colour_swatch);
+		override_colour_checkbox.layout_align_middle(override_colour_swatch);
+		override_colour_checkbox.change.on(EventCallback(on_override_colour_checked_change));
+		edit_window.add_child(override_colour_checkbox);
+		
+		Label@ override_label = script.create_label('Override colour', edit_window);
+		override_label.anchor_left.sibling(override_colour_checkbox).padding(style.spacing);
+		override_label.layout_align_middle(override_colour_swatch);
+		@override_colour_checkbox.label = override_label;
+		
+		// HSL
+		
+		// TOOD: Might need some more options for ColourPicker to hide inputs etc. or make smaller?
+		
+		Divider@ override_divider = Divider(ui, Orientation::Vertical);
+		override_divider.anchor_top.after(override_colour_swatch);
+		override_divider.anchor_left.pixel(0);
+		override_divider.anchor_right.pixel(0);
+		edit_window.add_child(override_divider);
+		
+		// Accept/Cancel buttons
+		
+		Button@ btn = Button(ui, 'Accept');
+		btn.fit_to_contents();
+		btn.mouse_click.on(EventCallback(on_accept_click));
+		edit_window.add_button_left(btn);
+		
+		@btn = Button(ui, 'Cancel');
+		btn.fit_to_contents();
+		btn.mouse_click.on(EventCallback(on_cancel_click));
+		edit_window.add_button_right(btn);
+		
+		//
+		
+		update_properties_for_override();
+	}
+	
+	// TODO: Implement
+	// TODO: Disable and grey out override/hsl based on the override checkbox
+	protected void update_edit_properties() override
+	{
+		if(!is_editing)
 			return;
 		
-		
+	}
+	
+	protected void update_properties_for_override()
+	{
+		override_colour_swatch.disabled = !override_colour_checkbox.checked;
+	}
+	
+	// //////////////////////////////////////////////////////////
+	// Editing
+	// //////////////////////////////////////////////////////////
+	
+	// TODO: Implement
+	// TODO: Might also have to check for mouse dragging sliders etc.
+	protected bool sub_ui_active() override
+	{
+		return false;
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -216,15 +202,35 @@ class FogTriggerHandler : TriggerToolHandler
 		
 		if(name == 'adjust')
 		{
-			if(adjust_button.selected)
+			if(edit_button.selected)
 			{
-				start_adjusting();
+				start_editing();
 			}
 			else
 			{
-				stop_adjusting(true);
+				stop_editing(true);
 			}
 		}
+	}
+	
+	private void on_accept_click(EventInfo@ event)
+	{
+		stop_editing(true);
+	}
+	
+	private void on_cancel_click(EventInfo@ event)
+	{
+		stop_editing(false);
+	}
+	
+	private void on_override_colour_change(EventInfo@ event)
+	{
+		
+	}
+	
+	private void on_override_colour_checked_change(EventInfo@ event)
+	{
+		update_properties_for_override();
 	}
 	
 }

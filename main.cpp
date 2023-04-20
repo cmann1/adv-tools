@@ -1250,7 +1250,6 @@ class AdvToolScript
 	Label@ create_label(const string &in text, Container@ parent=null)
 	{
 		Label@ label = Label(ui, text);
-		label.set_padding(ui.style.spacing, ui.style.spacing, 0, 0);
 		label.align_v = GraphicAlign::Middle;
 		label.fit_to_contents();
 		

@@ -23,9 +23,7 @@ class TextTriggerHandler : TriggerToolHandler
 	private TextTriggerHandlerData@ selected_normal_trigger;
 	
 	private Toolbar@ toolbar;
-	private Button@ edit_button;
 	
-	private Window@ window;
 	private Checkbox@ visible_checkbox;
 	private TextBox@ text_box;
 	private Container@ z_properties_container;
@@ -40,7 +38,6 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private float colour_swatch_open_alpha;
 	
-	private bool is_editing;
 	private const array<int>@ font_sizes;
 	private int selected_font_size;
 	
@@ -130,7 +127,7 @@ class TextTriggerHandler : TriggerToolHandler
 	// Methods
 	// //////////////////////////////////////////////////////////
 	
-	private bool sub_ui_active()
+	protected bool sub_ui_active() override
 	{
 		if(@colour_swatch == null)
 			return false;
@@ -143,24 +140,9 @@ class TextTriggerHandler : TriggerToolHandler
 	{
 		if(state == TriggerHandlerState::Idle)
 		{
-			// Start editing with Enter.
-			if(@selected_trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
+			if(check_edit_keys() == 1)
 			{
 				lock_input = true;
-				start_editing();
-			}
-			
-			// Accept/Cancel with Enter/Escape when the textbox isn't focused.
-			if(script.scene_focus && !sub_ui_active())
-			{
-				if(script.escape_press)
-				{
-					stop_editing(false);
-				}
-				else if(script.ctrl.down && script.return_press)
-				{
-					stop_editing(true);
-				}
 			}
 		}
 		
@@ -176,23 +158,9 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private void check_mouse()
 	{
-		bool changed = false;
-		
 		if(state == TriggerHandlerState::Idle)
 		{
-			// Multi select
-			if(has_selection && !script.alt.down && script.shift.down && script.mouse.left_press)
-			{
-				script.input.key_clear_gvb(GVB::LeftClick);
-				
-				entity@ new_trigger = pick_trigger();
-				if(@new_trigger != null)
-				{
-					select_trigger(new_trigger);
-				}
-			}
-			
-			if(@selected_z_trigger != null)
+			if(!check_mouse_multi_select() && @selected_z_trigger != null)
 			{
 				if(script.alt.down && script.mouse.left_press)
 				{
@@ -367,52 +335,19 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) override
 	{
-		if(is_editing && select_list.length == 0)
-		{
-			stop_editing(true);
-		}
-		
-		if(primary && !added && is_editing)
-		{
-			update_properties();
-			return;
-		}
+		do_selection_change_for_editing(true, primary, added, removed);
 		
 		if(!primary && select_list.length != 0)
 		{
-			if(is_editing)
-			{
-				update_properties();
-			}
-			else
+			if(!is_editing)
 			{
 				update_z_trigger(removed);
-			}
-			return;
-		}
-		
-		if(@selected_trigger != null)
-		{
-			if(@selected_popup == null)
-			{
-				create_toolbar();
-			}
-			
-			show_selected_popup();
-			
-			if(is_editing)
-			{
-				stop_editing(true, false);
-				start_editing();
 			}
 		}
 		else
 		{
-			show_selected_popup(false);
-			stop_editing(true);
+			update_z_trigger(true);
 		}
-		
-		update_z_trigger(true);
 	}
 	
 	private void update_z_trigger(const bool full=false)
@@ -462,54 +397,16 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		if(had_z_trigger != (@selected_z_trigger != null) || had_normal_trigger != (@selected_normal_trigger != null))
 		{
-			update_properties();
+			update_edit_properties();
 		}
 	}
 	
-	private void start_editing()
+	protected void start_editing() override
 	{
-		const bool is_window_created = create_window();
+		TriggerToolHandler::start_editing();
 		
-		// Already editing - assume a trigger was added to the selection so just store the last one.
-		store_all_triggers_data(is_editing);
-		
-		is_editing = true;
-		update_properties();
-		
-		if(is_window_created)
-		{
-			window.fit_to_contents(true);
-			window.centre();
-			script.window_manager.force_immediate_reposition(window);
-		}
-		
-		edit_button.selected = true;
-		window.show();
-		window.parent.move_to_front(window);
 		@script.ui.focus = text_box;
 		text_box.select_all();
-	}
-	
-	private void stop_editing(const bool accept, const bool update_ui=true)
-	{
-		if(!is_editing)
-			return;
-		
-		if(!accept)
-		{
-			restore_all_triggers_data();
-		}
-		
-		is_editing = false;
-		
-		if(update_ui)
-		{
-			edit_button.selected = false;
-			if(@window != null)
-			{
-				window.hide(script.in_editor);
-			}
-		}
 	}
 	
 	private void unlock_input()
@@ -526,7 +423,7 @@ class TextTriggerHandler : TriggerToolHandler
 	// UI
 	// //////////////////////////////////////////////////////////
 	
-	private void create_toolbar()
+	protected Element@ create_selected_popup_content() override
 	{
 		UI@ ui = script.ui;
 		Style@ style = ui.style;
@@ -540,33 +437,26 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		toolbar.fit_to_contents(true);
 		
-		create_selected_popup(toolbar);
+		return toolbar;
 	}
 	
-	private bool create_window()
+	protected void create_edit_window() override
 	{
-		if(@window != null)
-			return false;
-		
 		UI@ ui = script.ui;
 		Style@ style = ui.style;
 		
-		EventCallback@ cancel_click = EventCallback(on_cancel_click);
-		
-		@window = Window(ui, 'Edit Text');
-		window.resizable = true;
-		window.min_width = 450;
-		window.min_height = 350;
-		window.name = 'TextToolTextProperties';
-		window.set_icon(SPRITE_SET, 'icon_edit', Settings::IconSize, Settings::IconSize);
-		ui.add_child(window);
-		window.x = 200;
-		window.y = 20;
-		window.width  = 200;
-		window.height = 200;
-		window.contents.autoscroll_on_focus = false;
-		@window.layout = AnchorLayout(ui).set_padding(0);
-		window.close.on(cancel_click);
+		@edit_window = Window(ui, 'Edit Text');
+		edit_window.resizable = true;
+		edit_window.name = 'TextToolTextProperties';
+		edit_window.set_icon(SPRITE_SET, 'icon_edit', Settings::IconSize, Settings::IconSize);
+		edit_window.x = 200;
+		edit_window.y = 20;
+		edit_window.min_width = 450;
+		edit_window.min_height = 350;
+		edit_window.width  = edit_window.min_width;
+		edit_window.height = edit_window.min_height;
+		@edit_window.layout = AnchorLayout(ui).set_padding(0);
+		edit_window.close.on(EventCallback(on_cancel_click));
 		
 		@text_box = TextBox(ui);
 		text_box.multi_line = true;
@@ -580,21 +470,17 @@ class TextTriggerHandler : TriggerToolHandler
 		text_box.anchor_bottom.pixel(0);
 		text_box.change.on(EventCallback(on_text_change));
 		text_box.accept.on(EventCallback(on_text_accept));
-		window.add_child(text_box);
+		edit_window.add_child(text_box);
 		
 		Button@ btn = Button(ui, 'Accept');
 		btn.fit_to_contents();
 		btn.mouse_click.on(EventCallback(on_accept_click));
-		window.add_button_left(btn);
+		edit_window.add_button_left(btn);
 		
 		@btn = Button(ui, 'Cancel');
 		btn.fit_to_contents();
 		btn.mouse_click.on(EventCallback(on_cancel_click));
-		window.add_button_right(btn);
-		
-		script.window_manager.register_element(window);
-		
-		return true;
+		edit_window.add_button_right(btn);
 	}
 	
 	private void create_z_properties_container()
@@ -705,10 +591,10 @@ class TextTriggerHandler : TriggerToolHandler
 		z_properties_container.fit_to_contents(true);
 		@z_properties_container.layout = AnchorLayout(script.ui).set_padding(0);
 		
-		window.add_child(z_properties_container);
+		edit_window.add_child(z_properties_container);
 	}
 	
-	private void update_properties()
+	protected void update_edit_properties() override
 	{
 		if(!is_editing)
 			return;
@@ -807,7 +693,7 @@ class TextTriggerHandler : TriggerToolHandler
 		ignore_events = true;
 		
 		const string types = @selected_z_trigger != null && @selected_normal_trigger == null ? 'Z Text' : 'Text';
-		window.title = 'Edit ' + types + ' Trigger' + (select_list.length > 1 ? 's' : '') +
+		edit_window.title = 'Edit ' + types + ' Trigger' + (select_list.length > 1 ? 's' : '') +
 			(select_list.length == 1 ? ' [' + data.trigger.id() + ']' : '');
 		
 		create_visible_checkbox(@selected_normal_trigger != null);
@@ -898,13 +784,13 @@ class TextTriggerHandler : TriggerToolHandler
 				visible_checkbox.change.on(EventCallback(on_hidden_change));
 			}
 			
-			window.add_title_before(visible_checkbox);
+			edit_window.add_title_before(visible_checkbox);
 		}
 		else
 		{
 			if(@visible_checkbox != null)
 			{
-				window.remove_title_before(visible_checkbox);
+				edit_window.remove_title_before(visible_checkbox);
 			}
 		}
 	}
