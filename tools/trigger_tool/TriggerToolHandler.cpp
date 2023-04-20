@@ -165,6 +165,47 @@ class TriggerToolHandler
 	}
 	
 	/**
+	 * @brief Removes/unselects triggers that have been deleted. Call during every `step`.
+	 */
+	protected void check_selected_triggers()
+	{
+		if(select_list.length == 0)
+			return;
+		
+		bool changed = false;
+		bool changed_primary = false;
+		
+		for(int i = int(select_list.length) - 1; i >= 0; i--)
+		{
+			TriggerHandlerData@ data = @select_list[i];
+			if(data.trigger.destroyed())
+			{
+				select_list.removeAt(i);
+				
+				if(i == 0)
+				{
+					changed_primary = true;
+				}
+				
+				changed = true;
+			}
+		}
+		
+		
+		if(changed)
+		{
+			if(changed_primary)
+			{
+				reset_primary_selected_trigger(true);
+			}
+			else
+			{
+				on_selection_changed(false, false, true);
+			}
+		}
+	}
+	
+	/**
 	 * @brief Override to be notified when the selection changes.
 	 * @param primary Has the primary selected trigger changed.
 	 * @param added Has a trigger been added to the selection.

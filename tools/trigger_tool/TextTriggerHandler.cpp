@@ -106,7 +106,7 @@ class TextTriggerHandler : TriggerToolHandler
 			script.ui.hide_tooltip(popup);
 		}
 		
-		check_triggers();
+		check_selected_triggers();
 		check_keys();
 		check_mouse();
 		
@@ -156,56 +156,6 @@ class TextTriggerHandler : TriggerToolHandler
 			return false;
 		
 		return colour_swatch.open || layer_button.open;
-	}
-	
-	//
-	
-	/// Removes/unselects triggers that have been deleted.
-	private void check_triggers()
-	{
-		if(select_list.length > 0)
-		{
-			bool changed = false;
-			
-			for(int i = int(select_list.length) - 1; i >= 0; i--)
-			{
-				TextTriggerHandlerData@ data = @selected(i);
-				if(data.trigger.destroyed())
-				{
-					select_list.removeAt(i);
-					
-					if(i == 0)
-					{
-						reset_primary_selected_trigger(true);
-					}
-					
-					changed = true;
-				}
-			}
-			
-			if(select_list.length == 0)
-			{
-				stop_editing(true);
-			}
-			else if(changed)
-			{
-				update_properties();
-			}
-		}
-		
-		if(@selected_trigger != null && selected_trigger.destroyed())
-		{
-			if(select_list.length > 0)
-			{
-				@selected_z_trigger = selected(0);
-				@selected_trigger = selected_z_trigger.trigger;
-				@script.editor.selected_trigger = selected_trigger;
-			}
-			else
-			{
-				select_trigger(null);
-			}
-		}
 	}
 	
 	/// Handle shortcut keys like Escape and Enter.
@@ -285,6 +235,8 @@ class TextTriggerHandler : TriggerToolHandler
 			script.input.key_clear_gvb(GVB::RightClick);
 		}
 	}
+	
+	//
 	
 	private void rotate_start()
 	{
@@ -446,7 +398,7 @@ class TextTriggerHandler : TriggerToolHandler
 			return;
 		}
 		
-		if(!primary)
+		if(!primary && select_list.length != 0)
 		{
 			if(is_editing)
 			{
