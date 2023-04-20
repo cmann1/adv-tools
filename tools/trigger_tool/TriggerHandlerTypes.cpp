@@ -1,6 +1,7 @@
 namespace TriggerHandlerState
 {
 	
+	const int Undefined = -1;
 	const int Idle = 0;
 	const int Rotating = 1;
 	const int Scaling = 2;

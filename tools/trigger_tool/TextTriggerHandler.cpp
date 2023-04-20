@@ -24,8 +24,6 @@ class TextTriggerHandler : TriggerToolHandler
 	/** The firsts selected text trigger if there is one. */
 	private TextTriggerHandlerData@ selected_normal_trigger;
 	
-	private Container@ dummy_overlay;
-	private PopupOptions@ popup;
 	private Toolbar@ toolbar;
 	private Button@ edit_button;
 	
@@ -97,15 +95,6 @@ class TextTriggerHandler : TriggerToolHandler
 			stop_editing(true);
 		}
 		
-		if(@popup != null && !popup.popup_visible && state == TriggerHandlerState::Idle)
-		{
-			script.ui.show_tooltip(popup, dummy_overlay);
-		}
-		else if(@popup != null && popup.popup_visible && state != TriggerHandlerState::Idle)
-		{
-			script.ui.hide_tooltip(popup);
-		}
-		
 		check_selected_triggers();
 		check_keys();
 		check_mouse();
@@ -120,10 +109,7 @@ class TextTriggerHandler : TriggerToolHandler
 			}
 		}
 		
-		if(@popup != null && popup.popup_visible && select_list.length > 0)
-		{
-			update_toolbar_position();
-		}
+		update_selected_popup_position(TriggerHandlerState::Idle);
 	}
 	
 	void draw(const float sub_frame) override
@@ -133,7 +119,7 @@ class TextTriggerHandler : TriggerToolHandler
 			for(uint i = 0; i < select_list.length; i++)
 			{
 				TextTriggerHandlerData@ data = selected(i);
-				draw_line_to_ui(data.trigger.x(), data.trigger.y(), popup.popup);
+				draw_line_to_ui(data.trigger.x(), data.trigger.y(), selected_popup.popup);
 			}
 		}
 		
@@ -413,15 +399,12 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		if(@selected_trigger != null)
 		{
-			if(@popup == null)
+			if(@selected_popup == null)
 			{
 				create_toolbar();
 			}
 			
-			script.ui.add_child(dummy_overlay);
-			script.ui.move_to_back(dummy_overlay);
-			update_toolbar_position();
-			script.ui.show_tooltip(popup, dummy_overlay);
+			show_selected_popup();
 			
 			if(is_editing)
 			{
@@ -431,9 +414,7 @@ class TextTriggerHandler : TriggerToolHandler
 		}
 		else
 		{
-			script.ui.hide_tooltip(popup, script.in_editor);
-			script.ui.remove_child(dummy_overlay);
-			
+			show_selected_popup(false);
 			stop_editing(true);
 		}
 		
@@ -591,21 +572,7 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		toolbar.fit_to_contents(true);
 		
-		//
-		
-		@dummy_overlay = Container(script.ui);
-		//dummy_overlay.background_colour = 0x55ff0000;
-		dummy_overlay.mouse_self = false;
-		dummy_overlay.is_snap_target = false;
-		
-		@popup = PopupOptions(script.ui, toolbar, true, PopupPosition::Above, PopupTriggerType::Manual, PopupHideType::Manual);
-		popup.as_overlay = false;
-		popup.spacing = 0;
-		popup.padding = 0;
-		popup.background_colour = 0;
-		popup.border_colour = 0;
-		popup.shadow_colour = 0;
-		popup.background_blur = false;
+		create_selected_popup(toolbar);
 	}
 	
 	private bool create_window()
@@ -782,44 +749,6 @@ class TextTriggerHandler : TriggerToolHandler
 		z_properties_container.add_child(label);
 		
 		return label;
-	}
-	
-	private void update_toolbar_position()
-	{
-		float x = 0, y = 0;
-		
-		for(uint i = 0; i < select_list.length; i++)
-		{
-			TextTriggerHandlerData@ data = selected(i);
-			x += data.trigger.x();
-			y += data.trigger.y();
-		}
-		
-		x /= select_list.length;
-		y /= select_list.length;
-		
-		float x1, y1, x2, y2;
-		const float size = select_list.length == 1 ? 10 : 0;
-		script.world_to_hud(x - size, y - size, x1, y1);
-		script.world_to_hud(x + size, y + size, x2, y2);
-		
-		if(select_list.length == 1)
-		{
-			y1 -= script.ui.style.spacing;
-		}
-		else
-		{
-			y1 += toolbar._height * 0.5;
-		}
-		
-		dummy_overlay.x = x1;
-		dummy_overlay.y = y1;
-		dummy_overlay.width = x2 - x1;
-		dummy_overlay.height = y2 - y1;
-		dummy_overlay.visible = true;
-		dummy_overlay.force_calculate_bounds();
-		
-		popup.interactable = !script.space.down;
 	}
 	
 	private void update_properties()

@@ -16,6 +16,9 @@ class TriggerToolHandler
 	/* The list of all selected triggers. */
 	protected array<TriggerHandlerData@> select_list;
 	
+	protected PopupOptions@ selected_popup;
+	protected Container@ selected_popup_dummy_overlay;
+	
 	TriggerToolHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
 		@this.script = script;
@@ -213,6 +216,116 @@ class TriggerToolHandler
 	 */
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) { }
 	
+	//
+	
+	/**
+	 * @brief Create a popup used to display e.g. a toolbar above the selected trigger.
+	 * @param content
+	 */
+	protected void create_selected_popup(Element@ content)
+	{
+		if(@selected_popup != null)
+			return;
+		
+		@selected_popup_dummy_overlay = Container(script.ui);
+		//selected_popup_dummy_overlay.background_colour = 0x55ff0000;
+		selected_popup_dummy_overlay.mouse_self = false;
+		selected_popup_dummy_overlay.is_snap_target = false;
+		
+		@selected_popup = PopupOptions(script.ui, content, true, PopupPosition::Above, PopupTriggerType::Manual, PopupHideType::Manual);
+		selected_popup.as_overlay = false;
+		selected_popup.spacing = 0;
+		selected_popup.padding = 0;
+		selected_popup.background_colour = 0;
+		selected_popup.border_colour = 0;
+		selected_popup.shadow_colour = 0;
+		selected_popup.background_blur = false;
+	}
+	
+	/**
+	 * @brief Call to show or hide the selection popup. `create_selected_popup` must have been called at least once
+	 *        before calling this.
+	 * @param show
+	 */
+	protected void show_selected_popup(const bool show=true)
+	{
+		if(show)
+		{
+			script.ui.add_child(selected_popup_dummy_overlay);
+			script.ui.move_to_back(selected_popup_dummy_overlay);
+			script.ui.show_tooltip(selected_popup, selected_popup_dummy_overlay);
+			update_selected_popup_position();
+		}
+		else
+		{
+			script.ui.hide_tooltip(selected_popup, script.in_editor);
+			script.ui.remove_child(selected_popup_dummy_overlay);
+		}
+	}
+	
+	/**
+	 * @brief Call at the end of every `step` if this handler displays the selection popup.
+	 * @param required_state If set will automatically show and hide the popup according to the current state.
+	 */
+	protected void update_selected_popup_position(const int required_state=TriggerHandlerState::Undefined)
+	{
+		if(@selected_popup == null)
+			return;
+		
+		if(required_state != TriggerHandlerState::Undefined)
+		{
+			if(!selected_popup.popup_visible && state == TriggerHandlerState::Idle)
+			{
+				script.ui.show_tooltip(selected_popup, selected_popup_dummy_overlay);
+			}
+			else if(selected_popup.popup_visible && state != TriggerHandlerState::Idle)
+			{
+				script.ui.hide_tooltip(selected_popup);
+			}
+		}
+		
+		if(@selected_popup == null || select_list.length == 0 || !selected_popup.popup_visible)
+		{
+			selected_popup.interactable = false;
+			return;
+		}
+		
+		float x = 0, y = 0;
+		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			TriggerHandlerData@ data = select_list[i];
+			x += data.trigger.x();
+			y += data.trigger.y();
+		}
+		
+		x /= select_list.length;
+		y /= select_list.length;
+		
+		float x1, y1, x2, y2;
+		const float size = select_list.length == 1 ? 10 : 0;
+		script.world_to_hud(x - size, y - size, x1, y1);
+		script.world_to_hud(x + size, y + size, x2, y2);
+		
+		if(select_list.length == 1)
+		{
+			y1 -= script.ui.style.spacing;
+		}
+		else
+		{
+			y1 += selected_popup.popup._height * 0.5;
+		}
+		
+		selected_popup_dummy_overlay.x = x1;
+		selected_popup_dummy_overlay.y = y1;
+		selected_popup_dummy_overlay.width = x2 - x1;
+		selected_popup_dummy_overlay.height = y2 - y1;
+		selected_popup_dummy_overlay.visible = true;
+		selected_popup_dummy_overlay.force_calculate_bounds();
+		
+		selected_popup.interactable = !script.space.down;
+	}
+	
 	// //////////////////////////////////////////////////////////
 	// Utility
 	// //////////////////////////////////////////////////////////
@@ -235,7 +348,7 @@ class TriggerToolHandler
 			entity@ e = script.g.get_entity_collision_index(i);
 			
 			const string type = e.type_name();
-			if(should_handle(e, type))
+			if(!should_handle(e, type))
 				continue;
 			
 			const float dist = dist_sqr(e.x(), e.y(), script.mouse.x, script.mouse.y);
