@@ -72,9 +72,17 @@ class ExtendedTriggerTool : Tool
 		
 		if(!script.ui.is_mouse_active && script.scene_focus)
 		{
-			if(script.ctrl.down && script.input.key_check_pressed_vk(VK::C))
+			if(@selected_trigger != null)
 			{
-				copy_trigger(selected_trigger, script.alt.down);
+				if(script.ctrl.down && script.input.key_check_pressed_vk(VK::C))
+				{
+					copy_trigger(selected_trigger, script.alt.down);
+				}
+				if(script.consume_gvb(GVB::Delete))
+				{
+					script.g.remove_entity(selected_trigger);
+					update_selected_trigger(null);
+				}
 			}
 			if(script.ctrl.down && script.input.key_check_pressed_vk(VK::V))
 			{
@@ -82,14 +90,6 @@ class ExtendedTriggerTool : Tool
 				if(@trigger != null)
 				{
 					@script.editor.selected_trigger = trigger;
-				}
-			}
-			if(script.ctrl.down && script.input.key_check_pressed_vk(VK::H))
-			{
-				if(selected_type == 'text_trigger')
-				{
-					varvalue@ hide_var = selected_trigger.vars().get_var('hide');
-					hide_var.set_bool(!hide_var.get_bool());
 				}
 			}
 		}
