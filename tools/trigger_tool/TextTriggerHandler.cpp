@@ -41,7 +41,6 @@ class TextTriggerHandler : TriggerToolHandler
 	private const array<int>@ font_sizes;
 	private int selected_font_size;
 	
-	private bool ignore_events;
 	private bool ignore_next_font_size_update;
 	/// Lock the text box input for one frame after pressing Enter to start editing to
 	/// prevent the Enter/text event being processed by the TextBox and overwrites the selected text.
@@ -227,9 +226,9 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		if(changed && is_editing)
 		{
-			ignore_events = true;
+			ignore_edit_ui_events = true;
 			rotation_wheel.degrees = selected_z_trigger.rotation;
-			ignore_events = false;
+			ignore_edit_ui_events = false;
 		}
 		
 		if(!script.mouse.left_down || script.escape_press)
@@ -296,9 +295,9 @@ class TextTriggerHandler : TriggerToolHandler
 		
 		if(changed && is_editing)
 		{
-			ignore_events = true;
+			ignore_edit_ui_events = true;
 			scale_slider.value = selected_z_trigger.scale;
-			ignore_events = false;
+			ignore_edit_ui_events = false;
 		}
 		
 		if(!script.mouse.right_down || script.escape_press)
@@ -690,8 +689,6 @@ class TextTriggerHandler : TriggerToolHandler
 		// Update UI
 		// 
 		
-		ignore_events = true;
-		
 		const string types = @selected_z_trigger != null && @selected_normal_trigger == null ? 'Z Text' : 'Text';
 		edit_window.title = 'Edit ' + types + ' Trigger' + (select_list.length > 1 ? 's' : '') +
 			(select_list.length == 1 ? ' [' + data.trigger.id() + ']' : '');
@@ -742,8 +739,6 @@ class TextTriggerHandler : TriggerToolHandler
 		{
 			z_properties_container.visible = false;
 		}
-		
-		ignore_events = false;
 	}
 	
 	private void update_font_sizes()
@@ -837,7 +832,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private void on_text_change(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		
 		const string text = text_box.text;
@@ -856,7 +851,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	private void on_hidden_change(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		
 		for(uint i = 0; i < select_list.length; i++)
@@ -869,7 +864,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void on_colour_change(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		if(event.type == EventType::ACCEPT || event.type == EventType::CLOSE)
 			return;
@@ -896,7 +891,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void on_layer_select(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		if(event.type == EventType::ACCEPT)
 			return;
@@ -923,7 +918,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void on_rotation_change(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		
 		for(uint i = 0; i < select_list.length; i++)
@@ -936,7 +931,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void on_scale_change(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		
 		for(uint i = 0; i < select_list.length; i++)
@@ -949,7 +944,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void on_font_change(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		
 		for(uint i = 0; i < select_list.length; i++)
@@ -966,7 +961,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	void on_font_size_change(EventInfo@ event)
 	{
-		if(ignore_events)
+		if(ignore_edit_ui_events)
 			return;
 		
 		if(font_size_select.selected_index == -1)

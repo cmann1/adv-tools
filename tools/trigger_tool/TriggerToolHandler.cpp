@@ -17,6 +17,9 @@ class TriggerToolHandler
 	protected array<TriggerHandlerData@> select_list;
 	
 	protected bool is_editing;
+	/* All UI events should return if this is true to avoid script changes triggering updates.
+	 * Can also be set by sub classes before/after change UI properties. */
+	protected bool ignore_edit_ui_events;
 	
 	protected PopupOptions@ selected_popup;
 	protected Container@ selected_popup_dummy_overlay;
@@ -242,7 +245,7 @@ class TriggerToolHandler
 		
 		if(primary && !added && is_editing)
 		{
-			update_edit_properties();
+			do_update_edit_properties();
 			return;
 		}
 		
@@ -250,7 +253,7 @@ class TriggerToolHandler
 		{
 			if(is_editing)
 			{
-				update_edit_properties();
+				do_update_edit_properties();
 			}
 			return;
 		}
@@ -518,7 +521,7 @@ class TriggerToolHandler
 		store_all_triggers_data(is_editing);
 		
 		is_editing = true;
-		update_edit_properties();
+		do_update_edit_properties();
 		
 		if(is_window_created)
 		{
@@ -568,6 +571,13 @@ class TriggerToolHandler
 	protected void create_edit_window()
 	{
 		puts('Warning: create_edit_window not implemented.');
+	}
+	
+	protected void do_update_edit_properties() final
+	{
+		ignore_edit_ui_events = true;
+		update_edit_properties();
+		ignore_edit_ui_events = false;
 	}
 	
 	/**

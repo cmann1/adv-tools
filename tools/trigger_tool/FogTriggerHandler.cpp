@@ -1,3 +1,11 @@
+#include '../../../../lib/ui3/layouts/AnchorLayout.cpp';
+#include '../../../../lib/ui3/elements/Button.cpp';
+#include '../../../../lib/ui3/elements/ColourSwatch.cpp';
+#include '../../../../lib/ui3/elements/colour_picker/ColourPicker.cpp';
+#include '../../../../lib/ui3/elements/extra/Panel.cpp';
+#include '../../../../lib/ui3/elements/Toolbar.cpp';
+#include '../../../../lib/ui3/elements/Window.cpp';
+
 #include 'FogTriggerHandlerData.cpp';
 
 const string TRIGGERS_SPRITES_BASE = SPRITES_BASE + 'triggers/';
@@ -8,9 +16,10 @@ class FogTriggerHandler : TriggerToolHandler
 	
 	private Toolbar@ toolbar;
 	
-	private Window@ window;
 	private ColourSwatch@ override_colour_swatch;
 	private Checkbox@ override_colour_checkbox;
+	private ColourPicker@ hsl_adjuster;
+	private Panel@ filter_box;
 	
 	FogTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
@@ -108,15 +117,11 @@ class FogTriggerHandler : TriggerToolHandler
 		Style@ style = ui.style;
 		
 		@edit_window = Window(ui, 'Adjust Fog');
-		edit_window.resizable = true;
+		//edit_window.resizable = true;
 		edit_window.name = 'FogToolTextProperties';
 		edit_window.set_icon(SPRITE_SET, 'fog_adjust', Settings::IconSize, Settings::IconSize);
 		edit_window.x = 200;
 		edit_window.y = 20;
-		edit_window.min_width = 450;
-		edit_window.min_height = 350;
-		edit_window.width  = edit_window.min_width;
-		edit_window.height = edit_window.min_height;
 		@edit_window.layout = AnchorLayout(ui).set_padding(0);
 		edit_window.close.on(EventCallback(on_cancel_click));
 		
@@ -130,7 +135,7 @@ class FogTriggerHandler : TriggerToolHandler
 		
 		@override_colour_checkbox = Checkbox(ui);
 		override_colour_checkbox.checked = true;
-		override_colour_checkbox.anchor_left.after(override_colour_swatch);
+		override_colour_checkbox.anchor_left.next_to(override_colour_swatch);
 		override_colour_checkbox.layout_align_middle(override_colour_swatch);
 		override_colour_checkbox.change.on(EventCallback(on_override_colour_checked_change));
 		edit_window.add_child(override_colour_checkbox);
@@ -140,15 +145,49 @@ class FogTriggerHandler : TriggerToolHandler
 		override_label.layout_align_middle(override_colour_swatch);
 		@override_colour_checkbox.label = override_label;
 		
-		// HSL
-		
-		// TOOD: Might need some more options for ColourPicker to hide inputs etc. or make smaller?
-		
 		Divider@ override_divider = Divider(ui, Orientation::Vertical);
-		override_divider.anchor_top.after(override_colour_swatch);
+		override_divider.anchor_top.next_to(override_colour_swatch);
 		override_divider.anchor_left.pixel(0);
 		override_divider.anchor_right.pixel(0);
 		edit_window.add_child(override_divider);
+		
+		// HSL
+		
+		@hsl_adjuster = ColourPicker(ui);
+		hsl_adjuster.show_rgb = false;
+		hsl_adjuster.show_alpha = false;
+		hsl_adjuster.show_buttons = false;
+		hsl_adjuster.show_hex = false;
+		hsl_adjuster.show_swatches = false;
+		hsl_adjuster.anchor_top.next_to(override_divider);
+		hsl_adjuster.anchor_left.pixel(0);
+		hsl_adjuster.anchor_right.pixel(0);
+		hsl_adjuster.fit_to_contents(true);
+		hsl_adjuster.change.on(EventCallback(on_adjust_colour_change));
+		edit_window.add_child(hsl_adjuster);
+		
+		// Filter box
+		
+		@filter_box = Panel(ui);
+		filter_box.anchor_top.next_to(hsl_adjuster);
+		filter_box.anchor_left.pixel(0);
+		filter_box.anchor_right.pixel(0);
+		filter_box.height = 100;
+		filter_box.border_colour = style.normal_border_clr;
+		filter_box.border_size = style.border_size;
+		filter_box.title = 'Filter';
+		filter_box.only_title_border = true;
+		filter_box.collapsible = true;
+		filter_box.show_collapse_arrow = true;
+		@filter_box.layout = AnchorLayout(ui).set_padding(0, 0, NAN, 0);
+		edit_window.add_child(filter_box);
+		
+		Button@ b = Button(ui, 'Hello');
+		b.fit_to_contents();
+		filter_box.add_child(b);
+		
+		filter_box.name = 'cp';
+		filter_box.fit_to_contents(true);
 		
 		// Accept/Cancel buttons
 		
@@ -164,21 +203,26 @@ class FogTriggerHandler : TriggerToolHandler
 		
 		//
 		
+		edit_window.fit_to_contents();
 		update_properties_for_override();
 	}
 	
-	// TODO: Implement
-	// TODO: Disable and grey out override/hsl based on the override checkbox
 	protected void update_edit_properties() override
 	{
 		if(!is_editing)
 			return;
 		
+		hsl_adjuster.h = 0.5;
+		hsl_adjuster.s = 1;
+		hsl_adjuster.l = 1;
+		
+		update_properties_for_override();
 	}
 	
 	protected void update_properties_for_override()
 	{
 		override_colour_swatch.disabled = !override_colour_checkbox.checked;
+		hsl_adjuster.disabled = override_colour_checkbox.checked;
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -225,12 +269,26 @@ class FogTriggerHandler : TriggerToolHandler
 	
 	private void on_override_colour_change(EventInfo@ event)
 	{
+		if(ignore_edit_ui_events)
+			return;
 		
+		puts('on_override_colour_change');
 	}
 	
 	private void on_override_colour_checked_change(EventInfo@ event)
 	{
+		if(ignore_edit_ui_events)
+			return;
+		
 		update_properties_for_override();
+	}
+	
+	private void on_adjust_colour_change(EventInfo@ event)
+	{
+		if(ignore_edit_ui_events)
+			return;
+		
+		puts('on_adjust_colour_change');
 	}
 	
 }
