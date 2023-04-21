@@ -128,6 +128,8 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	protected bool sub_ui_active() override
 	{
+		if(script.ui.is_mouse_active)
+			return false;
 		if(@colour_swatch == null)
 			return false;
 		

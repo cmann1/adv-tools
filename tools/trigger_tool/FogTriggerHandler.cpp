@@ -20,6 +20,7 @@ class FogTriggerHandler : TriggerToolHandler
 	private Checkbox@ override_colour_checkbox;
 	private ColourPicker@ hsl_adjuster;
 	private Panel@ filter_box;
+	private Checkbox@ filter_layer_selected_checkbox;
 	
 	FogTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
@@ -62,7 +63,10 @@ class FogTriggerHandler : TriggerToolHandler
 	
 	private void check_keys()
 	{
-		check_edit_keys();
+		if(state == TriggerHandlerState::Idle)
+		{
+			check_edit_keys();
+		}
 	}
 	
 	private void check_mouse()
@@ -117,7 +121,6 @@ class FogTriggerHandler : TriggerToolHandler
 		Style@ style = ui.style;
 		
 		@edit_window = Window(ui, 'Adjust Fog');
-		//edit_window.resizable = true;
 		edit_window.name = 'FogToolTextProperties';
 		edit_window.set_icon(SPRITE_SET, 'fog_adjust', Settings::IconSize, Settings::IconSize);
 		edit_window.x = 200;
@@ -126,7 +129,7 @@ class FogTriggerHandler : TriggerToolHandler
 		edit_window.close.on(EventCallback(on_cancel_click));
 		
 		// Override colour swatch
-		
+		//{
 		@override_colour_swatch = ColourSwatch(ui);
 		@override_colour_swatch.tooltip = PopupOptions(ui, 'Override colour');
 		override_colour_swatch.change.on(EventCallback(on_override_colour_change));
@@ -136,40 +139,36 @@ class FogTriggerHandler : TriggerToolHandler
 		@override_colour_checkbox = Checkbox(ui);
 		override_colour_checkbox.checked = true;
 		override_colour_checkbox.anchor_left.next_to(override_colour_swatch);
-		override_colour_checkbox.layout_align_middle(override_colour_swatch);
+		//override_colour_checkbox.layout_align_middle(override_colour_swatch);
 		override_colour_checkbox.change.on(EventCallback(on_override_colour_checked_change));
 		edit_window.add_child(override_colour_checkbox);
 		
 		Label@ override_label = script.create_label('Override colour', edit_window);
-		override_label.anchor_left.sibling(override_colour_checkbox).padding(style.spacing);
-		override_label.layout_align_middle(override_colour_swatch);
+		override_label.anchor_left.sibling(override_colour_checkbox).padding(NAN);
+		//override_label.layout_align_middle(override_colour_swatch);
 		@override_colour_checkbox.label = override_label;
-		
-		Divider@ override_divider = Divider(ui, Orientation::Vertical);
-		override_divider.anchor_top.next_to(override_colour_swatch);
-		override_divider.anchor_left.pixel(0);
-		override_divider.anchor_right.pixel(0);
-		edit_window.add_child(override_divider);
+		//}
 		
 		// HSL
-		
+		//{
 		@hsl_adjuster = ColourPicker(ui);
 		hsl_adjuster.show_rgb = false;
 		hsl_adjuster.show_alpha = false;
 		hsl_adjuster.show_buttons = false;
 		hsl_adjuster.show_hex = false;
 		hsl_adjuster.show_swatches = false;
-		hsl_adjuster.anchor_top.next_to(override_divider);
+		hsl_adjuster.anchor_top.next_to(override_colour_swatch);
 		hsl_adjuster.anchor_left.pixel(0);
 		hsl_adjuster.anchor_right.pixel(0);
 		hsl_adjuster.fit_to_contents(true);
 		hsl_adjuster.change.on(EventCallback(on_adjust_colour_change));
 		edit_window.add_child(hsl_adjuster);
+		//}
 		
 		// Filter box
 		
 		@filter_box = Panel(ui);
-		filter_box.anchor_top.next_to(hsl_adjuster);
+		filter_box.anchor_top.next_to(hsl_adjuster, style.spacing * 2);
 		filter_box.anchor_left.pixel(0);
 		filter_box.anchor_right.pixel(0);
 		filter_box.height = 100;
@@ -179,14 +178,23 @@ class FogTriggerHandler : TriggerToolHandler
 		filter_box.only_title_border = true;
 		filter_box.collapsible = true;
 		filter_box.show_collapse_arrow = true;
-		@filter_box.layout = AnchorLayout(ui).set_padding(0, 0, NAN, 0);
+		@filter_box.layout = AnchorLayout(ui).set_padding(0, 0, style.spacing * 2, 0);
+		filter_box.collapse.on(EventCallback(on_filter_box_collapsed));
 		edit_window.add_child(filter_box);
 		
-		Button@ b = Button(ui, 'Hello');
-		b.fit_to_contents();
-		filter_box.add_child(b);
+		// Filter layer
 		
-		filter_box.name = 'cp';
+		@filter_layer_selected_checkbox = Checkbox(ui);
+		filter_layer_selected_checkbox.checked = false;
+		filter_layer_selected_checkbox.anchor_left.pixel(0);
+		filter_layer_selected_checkbox.change.on(EventCallback(on_filter_layer_change));
+		filter_box.add_child(filter_layer_selected_checkbox);
+		
+		Label@ filter_layer_selected_label = script.create_label('Selected layer only', filter_box);
+		filter_layer_selected_label.anchor_left.sibling(filter_layer_selected_checkbox).padding(NAN);
+		filter_layer_selected_label.anchor_top.sibling(filter_layer_selected_checkbox, 0.5).align_v(0.5);
+		@filter_layer_selected_checkbox.label = filter_layer_selected_label;
+		
 		filter_box.fit_to_contents(true);
 		
 		// Accept/Cancel buttons
@@ -233,7 +241,7 @@ class FogTriggerHandler : TriggerToolHandler
 	// TODO: Might also have to check for mouse dragging sliders etc.
 	protected bool sub_ui_active() override
 	{
-		return false;
+		return script.ui.is_mouse_active;
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -289,6 +297,23 @@ class FogTriggerHandler : TriggerToolHandler
 			return;
 		
 		puts('on_adjust_colour_change');
+	}
+	
+	private void on_filter_box_collapsed(EventInfo@ event)
+	{
+		if(ignore_edit_ui_events)
+			return;
+		
+		filter_box.fit_to_contents();
+		edit_window.fit_to_contents();
+	}
+	
+	private void on_filter_layer_change(EventInfo@ event)
+	{
+		if(ignore_edit_ui_events)
+			return;
+		
+		
 	}
 	
 }
