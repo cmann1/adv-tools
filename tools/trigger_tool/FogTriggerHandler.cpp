@@ -1,3 +1,5 @@
+#include '../../../../lib/utils/colour.cpp';
+
 #include '../../../../lib/ui3/layouts/AnchorLayout.cpp';
 #include '../../../../lib/ui3/elements/Button.cpp';
 #include '../../../../lib/ui3/elements/ColourSwatch.cpp';
@@ -22,9 +24,17 @@ class FogTriggerHandler : TriggerToolHandler
 	private Panel@ filter_box;
 	private Checkbox@ filter_layer_selected_checkbox;
 	private ColourSwatch@ filter_colour_swatch;
-	private NumberSlider@ filter_colour_threshhold;
+	private ColourSwatch@ filter_colour_tolerance;
 	private LayerButton@ filter_layer_button;
 	private LayerSelector@ filter_layer_select;
+	private Checkbox@ filter_default_sub_layer_checkbox;
+	private Checkbox@ filter_sky_top_checkbox;
+	private Checkbox@ filter_sky_mid_checkbox;
+	private Checkbox@ filter_sky_bot_checkbox;
+	
+	/* True if any of the selected triggers have sub layers. */
+	private bool has_sub_layers;
+	private int last_filtered_layer = -1;
 	
 	FogTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
@@ -52,6 +62,12 @@ class FogTriggerHandler : TriggerToolHandler
 		check_keys();
 		check_mouse();
 		
+		if(is_editing && last_filtered_layer != script.layer && filter_layer_selected_checkbox.checked)
+		{
+			reset_colour();
+			do_adjust();
+		}
+		
 		update_selected_popup_position(TriggerHandlerState::Idle);
 	}
 	
@@ -63,7 +79,6 @@ class FogTriggerHandler : TriggerToolHandler
 	// //////////////////////////////////////////////////////////
 	// Methods
 	// //////////////////////////////////////////////////////////
-	
 	
 	private void check_keys()
 	{
@@ -95,7 +110,205 @@ class FogTriggerHandler : TriggerToolHandler
 	
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) override
 	{
+		has_sub_layers = false;
+		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			FogTriggerHandlerData@ data = selected(i);
+			if(data.has_sub_layers)
+			{
+				has_sub_layers = true;
+				break;
+			}
+		}
+		
+		update_filter_layer_selector();
+		
 		do_selection_change_for_editing(true, primary, added, removed);
+	}
+	
+	protected void start_editing() override
+	{
+		TriggerToolHandler::start_editing();
+		
+		if(override_colour_checkbox.checked)
+		{
+			do_adjust();
+		}
+	}
+	
+	protected void stop_editing(const bool accept, const bool update_ui=true) override
+	{
+		if(!is_editing)
+			return;
+		
+		TriggerToolHandler::stop_editing(accept, update_ui);
+		
+		if(!accept && select_list.length > 0)
+		{
+			script.cam.change_fog(selected(0).fog, 0);
+		}
+	}
+	
+	private void do_adjust()
+	{
+		const bool filter_default_sub_layers = filter_default_sub_layer_checkbox.checked;
+		const bool all_layers =
+			filter_layer_select.num_layers_selected() == 0 || filter_layer_select.num_layers_selected() == 21;
+		const bool all_sub_layers = (filter_layer_select.num_sub_layers_selected() == 0 || filter_layer_select.num_sub_layers_selected() == 25);
+		
+		const bool has_tolerance = this.has_tolerance();
+		const float adjust_h = hsl_adjuster.h - 0.5;
+		const float adjust_s = hsl_adjuster.s * 2 - 1;
+		const float adjust_v = hsl_adjuster.l * 2 - 1;
+		const float filter_h = filter_colour_swatch.h;
+		const float filter_s = filter_colour_swatch.s;
+		const float filter_v = filter_colour_swatch.l;
+		const float filter_a = filter_colour_swatch.a;
+		const float tolerance_h = filter_colour_tolerance.h;
+		const float tolerance_s = filter_colour_tolerance.s;
+		const float tolerance_v = filter_colour_tolerance.l;
+		const float tolerance_a = filter_colour_tolerance.a;
+		const int selected_layer = filter_layer_selected_checkbox.checked
+			? script.layer : -1;
+		
+		const int SkyTop = -4;
+		const int SkyMid = -3;
+		const int SkyBot = -2;
+		const int DefaultSubLayer = -1;
+		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			FogTriggerHandlerData@ data = selected(i);
+			fog_setting@ fog = data.fog;
+			fog_setting@ to_fog = data.edit_fog;
+			
+			for (int layer = SkyTop; layer <= 20; layer++)
+			{
+				if(layer == -1)
+					continue;
+				if(
+					layer == SkyTop && !filter_sky_top_checkbox.checked ||
+					layer == SkyMid && !filter_sky_mid_checkbox.checked ||
+					layer == SkyBot && !filter_sky_bot_checkbox.checked)
+					continue;
+				// Sky layers
+				if(selected_layer != -1 && layer < -1)
+					continue;
+				if(selected_layer != -1 && layer >= 0 && layer != selected_layer)
+					continue;
+				if(!all_layers && !filter_layer_select.is_layer_selected(layer))
+					continue;
+				
+				const int sub_layer_start = layer >= 0 ? DefaultSubLayer : layer;
+				const int sub_layer_end = layer >= 0 ? (data.has_sub_layers ? 24 : -1) : layer;
+				
+				for (int sub_layer = sub_layer_start; sub_layer <= sub_layer_end; sub_layer++)
+				{
+					if(data.has_sub_layers && (
+						!all_sub_layers && sub_layer > DefaultSubLayer && !filter_layer_select.is_sub_layer_selected(sub_layer) ||
+						sub_layer == DefaultSubLayer && !filter_default_sub_layers)
+					)
+						continue;
+					
+					uint clr;
+					int r, g, b, a;
+					float h, s, v;
+					
+					if(!override_colour_checkbox.checked || has_tolerance)
+					{
+						switch(sub_layer)
+						{
+							case SkyTop: clr = fog.bg_top(); break;
+							case SkyMid: clr = fog.bg_mid(); break;
+							case SkyBot: clr = fog.bg_bot(); break;
+							case DefaultSubLayer: clr = fog.layer_colour(layer); break;
+							default: clr = fog.colour(layer, sub_layer); break;
+						}
+						
+						int_to_rgba(clr, r, g, b, a);
+						
+						if(has_tolerance)
+						{
+							rgb_to_hsv(r, g, b, h, s, v);
+							
+							if(
+								abs(h - filter_h) > tolerance_h ||
+								abs(s - filter_s) > tolerance_s ||
+								abs(v - filter_v) > tolerance_v ||
+								abs(a - filter_a) > tolerance_a
+							)
+								continue;
+						}
+					}
+					
+					if(!override_colour_checkbox.checked)
+					{
+						if(!has_tolerance)
+						{
+							rgb_to_hsv(r, g, b, h, s, v);
+						}
+						
+						h = (h + adjust_h) % 1;
+						if(h < 0)
+						{
+							h += 1;
+						}
+						
+						s = clamp01(s + adjust_s);
+						v = clamp01(v + adjust_v);
+						
+						clr = hsv_to_rgb(h, s, v) | (a << 24);
+					}
+					else
+					{
+						clr = override_colour_swatch.colour;
+					}
+					
+					switch(sub_layer)
+					{
+						case SkyTop: to_fog.bg_top(clr); break;
+						case SkyMid: to_fog.bg_mid(clr); break;
+						case SkyBot: to_fog.bg_bot(clr); break;
+						case DefaultSubLayer: to_fog.default_colour(layer, clr); break;
+						default: to_fog.colour(layer, sub_layer, clr); break;
+					}
+					
+					if(layer < 0)
+						break;
+				}
+			}
+			
+			to_fog.copy_to(data.trigger);
+			
+			if(i == 0)
+			{
+				script.cam.change_fog(to_fog, 0);
+			}
+		}
+		
+		last_filtered_layer = script.layer;
+	}
+	
+	/**
+	 * @brief When changing filters it's necessary to reset all fog to prevent previous changes from persisting.
+	 */
+	private void reset_colour()
+	{
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			FogTriggerHandlerData@ data = selected(i);
+			data.edit_fog.copy_from(data.fog);
+		}
+	}
+	
+	private bool has_tolerance()
+	{
+		return
+			filter_colour_tolerance.h < 1 ||
+			filter_colour_tolerance.s < 1 ||
+			filter_colour_tolerance.l < 1 ||
+			filter_colour_tolerance.a < 255;
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -119,6 +332,7 @@ class FogTriggerHandler : TriggerToolHandler
 		return toolbar;
 	}
 	
+	// TODO: Hide swatch tooltips when opening
 	protected void create_edit_window() override
 	{
 		UI@ ui = script.ui;
@@ -131,6 +345,9 @@ class FogTriggerHandler : TriggerToolHandler
 		edit_window.y = 20;
 		@edit_window.layout = AnchorLayout(ui).set_padding(0);
 		edit_window.close.on(EventCallback(on_cancel_click));
+		
+		EventCallback@ on_change_delegate = EventCallback(on_adjust_property_change);
+		EventCallback@ on_filter_change_delegate = EventCallback(on_filter_change);
 		
 		// Override colour swatch
 		//{
@@ -165,13 +382,14 @@ class FogTriggerHandler : TriggerToolHandler
 		hsl_adjuster.anchor_left.pixel(0);
 		hsl_adjuster.anchor_right.pixel(0);
 		hsl_adjuster.fit_to_contents(true);
-		hsl_adjuster.change.on(EventCallback(on_adjust_colour_change));
+		hsl_adjuster.change.on(on_change_delegate);
 		edit_window.add_child(hsl_adjuster);
 		//}
 		
 		// Filter box
 		//{
 		@filter_box = Panel(ui);
+		filter_box.collapsed = true;
 		filter_box.anchor_top.next_to(hsl_adjuster, style.spacing * 2);
 		filter_box.anchor_left.pixel(0);
 		filter_box.anchor_right.pixel(0);
@@ -188,45 +406,71 @@ class FogTriggerHandler : TriggerToolHandler
 		edit_window.add_child(filter_box);
 		//}
 		
-		// Filter layer selected
-		//{
-		@filter_layer_selected_checkbox = Checkbox(ui);
-		filter_layer_selected_checkbox.checked = false;
-		filter_layer_selected_checkbox.anchor_left.pixel(0);
-		filter_layer_selected_checkbox.change.on(EventCallback(on_filter_layer_selected_change));
-		filter_box.add_child(filter_layer_selected_checkbox);
-		
-		Label@ filter_layer_selected_label = script.create_label('Selected layer only', filter_box);
-		filter_layer_selected_label.anchor_left.next_to(filter_layer_selected_checkbox);
-		filter_layer_selected_label.anchor_top.sibling(filter_layer_selected_checkbox, 0.5).align_v(0.5);
-		@filter_layer_selected_checkbox.label = filter_layer_selected_label;
-		//}
-		
 		// Filter colour and threshold
 		//{
 		@filter_colour_swatch = ColourSwatch(ui);
 		@filter_colour_swatch.tooltip = PopupOptions(ui, 'Filter by layer colour');
-		filter_colour_swatch.anchor_top.next_to(filter_layer_selected_checkbox);
 		filter_colour_swatch.change.on(EventCallback(on_filter_colour_change));
 		filter_colour_swatch.activate.on(EventCallback(on_filter_colour_change));
 		filter_box.add_child(filter_colour_swatch);
 		
-		@filter_colour_threshhold = NumberSlider(ui, 255, 0, 255, 1);
-		filter_colour_threshhold.width = 160;
-		@filter_colour_threshhold.tooltip = PopupOptions(ui,
-			'How closely the layer colour must match the filter colour\n' +
-			'0 - Only an exact match\n' +
-			'255- All colours. Do not filter by colour');
-		filter_colour_threshhold.anchor_top.sibling(filter_colour_swatch, 1);
-		filter_colour_threshhold.anchor_right.pixel(0);
-		filter_colour_threshhold.change.on(EventCallback(on_filter_colour_threshhold_change));
-		filter_box.add_child(filter_colour_threshhold);
+		@filter_colour_tolerance = ColourSwatch(ui);
+		@filter_colour_tolerance.tooltip = PopupOptions(ui,
+			'Layer colour filter tolerance.\n' +
+			'How closely the layer colour HSL values must match\n' +
+			'the filter colour:\n' +
+			'   0,0,0 - Exact match\n' +
+			'   1,1,1 - No filtering - all colours/layers');
+		filter_colour_tolerance.show_rgb = false;
+		filter_colour_tolerance.show_hex = false;
+		filter_colour_tolerance.force_hsl = true;
+		filter_colour_tolerance.set_hsl(1, 1, 1, 255);
+		filter_colour_tolerance.anchor_left.next_to(filter_colour_swatch);
+		filter_colour_tolerance.anchor_top.sibling(filter_colour_swatch, 1);
+		filter_colour_tolerance.change.on(EventCallback(on_filter_tolerance_colour_change));
+		filter_colour_tolerance.activate.on(EventCallback(on_filter_tolerance_colour_change));
+		filter_box.add_child(filter_colour_tolerance);
+		//}
 		
-		Label@ filter_tolerance_label = script.create_label('Tolerance', filter_box);
-		filter_tolerance_label.text_align_h = TextAlign::Right;
-		filter_tolerance_label.anchor_left.next_to(filter_colour_swatch);
-		filter_tolerance_label.anchor_right.next_to(filter_colour_threshhold);
-		filter_tolerance_label.anchor_top.sibling(filter_colour_threshhold, 0.5).align_v(0.5);
+		// Selected layer, Default sub layer, and sky
+		//{
+		const array<string> names = {'selected', 'default', 'sky_top', 'sky_mid', 'sky_bot'};
+		const array<string> labels = {'Selected layer only', 'Default sub layer', 'Sky top', 'Sky mid', 'Sky bot'};
+		const array<bool> checked = {false, true, true, true, true};
+		const array<string> tooltip = {
+			'If selected only the layer selected in the editor will be adjusted',
+			'If selected the default/vanilla sub layer will be adjusted',
+			'', '', ''};
+		array<Checkbox@> checkboxes(labels.length);
+		
+		Element@ prev = filter_colour_swatch;
+		
+		for(uint i = 0; i < labels.length; i++)
+		{
+			Checkbox@ checkbox = Checkbox(ui);
+			checkbox.name = names[i];
+			checkbox.checked = checked[i];
+			checkbox.anchor_top.next_to(prev);
+			checkbox.anchor_left.pixel(0);
+			checkbox.change.on(on_filter_change_delegate);
+			filter_box.add_child(checkbox);
+			
+			Label@ label = script.create_label(labels[i], filter_box);
+			label.anchor_left.next_to(checkbox);
+			label.anchor_top.sibling(checkbox, 0.5).align_v(0.5);
+			@label.tooltip = tooltip[i] != '' ? PopupOptions(ui, tooltip[i]) : null;
+			@checkbox.label = label;
+			
+			@prev = checkbox;
+			@checkboxes[i] = checkbox;
+		}
+		
+		uint i = 0;
+		@filter_layer_selected_checkbox = checkboxes[i++];
+		@filter_default_sub_layer_checkbox = checkboxes[i++];
+		@filter_sky_top_checkbox = checkboxes[i++];
+		@filter_sky_mid_checkbox = checkboxes[i++];
+		@filter_sky_bot_checkbox = checkboxes[i++];
 		//}
 		
 		// Filter layer
@@ -234,15 +478,17 @@ class FogTriggerHandler : TriggerToolHandler
 		@filter_layer_button = LayerButton(ui);
 		filter_layer_button.auto_close = false;
 		@filter_layer_button.tooltip = PopupOptions(ui, 'Filter by layers');
+		filter_layer_button.anchor_right.pixel(0);
 		filter_layer_button.anchor_top.next_to(filter_colour_swatch);
-		filter_layer_button.change.on(EventCallback(on_filter_layer_select));
-		filter_layer_button.select.on(EventCallback(on_filter_layer_select));
+		filter_layer_button.change.on(EventCallback(on_filter_layer_change));
+		filter_layer_button.select.on(EventCallback(on_filter_layer_change));
 		filter_box.add_child(filter_layer_button);
 		
 		@filter_layer_select = filter_layer_button.layer_select;
 		filter_layer_select.multi_select = true;
 		filter_layer_select.show_all_layers_toggle = true;
 		filter_layer_select.show_all_sub_layers_toggle = true;
+		filter_layer_select.set_ui_layers_visibility(false);
 		//}
 		
 		filter_box.fit_to_contents();
@@ -263,7 +509,9 @@ class FogTriggerHandler : TriggerToolHandler
 		//
 		
 		edit_window.fit_to_contents(true);
+		
 		update_properties_for_override();
+		update_filter_layer_selector();
 	}
 	
 	protected void update_edit_properties() override
@@ -272,8 +520,8 @@ class FogTriggerHandler : TriggerToolHandler
 			return;
 		
 		hsl_adjuster.h = 0.5;
-		hsl_adjuster.s = 1;
-		hsl_adjuster.l = 1;
+		hsl_adjuster.s = 0.5;
+		hsl_adjuster.l = 0.5;
 		
 		update_properties_for_override();
 	}
@@ -284,6 +532,15 @@ class FogTriggerHandler : TriggerToolHandler
 		hsl_adjuster.disabled = override_colour_checkbox.checked;
 	}
 	
+	protected void update_filter_layer_selector()
+	{
+		if(@filter_layer_select == null)
+			return;
+		
+		filter_layer_select.type = has_sub_layers
+			? LayerSelectorType::Both : LayerSelectorType::Layers;
+	}
+	
 	// //////////////////////////////////////////////////////////
 	// Editing
 	// //////////////////////////////////////////////////////////
@@ -292,6 +549,7 @@ class FogTriggerHandler : TriggerToolHandler
 	{
 		return
 			script.ui.is_mouse_active ||
+			@override_colour_swatch != null && override_colour_swatch.open ||
 			@filter_colour_swatch != null && filter_colour_swatch.open ||
 			@filter_layer_button != null && filter_layer_button.open;
 	}
@@ -327,12 +585,25 @@ class FogTriggerHandler : TriggerToolHandler
 		stop_editing(false);
 	}
 	
+	private void on_adjust_property_change(EventInfo@ event)
+	{
+		if(ignore_edit_ui_events)
+			return;
+		
+		do_adjust();
+	}
+	
 	private void on_override_colour_change(EventInfo@ event)
 	{
 		if(ignore_edit_ui_events)
 			return;
 		
-		puts('on_override_colour_change');
+		if(
+			event.type != EventType::ACCEPT && event.type != EventType::OPEN && event.type != EventType::CLOSE ||
+			event.type == EventType::CANCEL)
+		{
+			do_adjust();
+		}
 	}
 	
 	private void on_override_colour_checked_change(EventInfo@ event)
@@ -341,14 +612,7 @@ class FogTriggerHandler : TriggerToolHandler
 			return;
 		
 		update_properties_for_override();
-	}
-	
-	private void on_adjust_colour_change(EventInfo@ event)
-	{
-		if(ignore_edit_ui_events)
-			return;
-		
-		puts('on_adjust_colour_change');
+		do_adjust();
 	}
 	
 	private void on_filter_box_collapsed(EventInfo@ event)
@@ -360,36 +624,34 @@ class FogTriggerHandler : TriggerToolHandler
 		edit_window.fit_to_contents();
 	}
 	
-	private void on_filter_layer_selected_change(EventInfo@ event)
-	{
-		if(ignore_edit_ui_events)
-			return;
-		
-		
-	}
-	
-	private void on_filter_colour_threshhold_change(EventInfo@ event)
-	{
-		if(ignore_edit_ui_events)
-			return;
-		
-		
-	}
-	
 	private void on_filter_colour_change(EventInfo@ event)
 	{
 		if(ignore_edit_ui_events)
 			return;
+		if(!has_tolerance())
+			return;
 		
-		
+		if(
+			event.type != EventType::ACCEPT && event.type != EventType::OPEN && event.type != EventType::CLOSE ||
+			event.type == EventType::CANCEL)
+		{
+			reset_colour();
+			do_adjust();
+		}
 	}
 	
-	private void on_filter_layer_select(EventInfo@ event)
+	private void on_filter_tolerance_colour_change(EventInfo@ event)
 	{
 		if(ignore_edit_ui_events)
 			return;
 		
-		
+		if(
+			event.type != EventType::ACCEPT && event.type != EventType::OPEN && event.type != EventType::CLOSE ||
+			event.type == EventType::CANCEL)
+		{
+			reset_colour();
+			do_adjust();
+		}
 	}
 	
 	private void on_filter_layer_change(EventInfo@ event)
@@ -397,7 +659,22 @@ class FogTriggerHandler : TriggerToolHandler
 		if(ignore_edit_ui_events)
 			return;
 		
+		if(
+			event.type != EventType::SELECT && event.type != EventType::OPEN && event.type != EventType::CLOSE ||
+			event.type == EventType::CANCEL)
+		{
+			reset_colour();
+			do_adjust();
+		}
+	}
+	
+	private void on_filter_change(EventInfo@ event)
+	{
+		if(ignore_edit_ui_events)
+			return;
 		
+		reset_colour();
+		do_adjust();
 	}
 	
 }
