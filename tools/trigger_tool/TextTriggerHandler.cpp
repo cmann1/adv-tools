@@ -463,8 +463,8 @@ class TextTriggerHandler : TriggerToolHandler
 		text_box.multi_line = true;
 		text_box.select_all_on_focus = false;
 		text_box.accept_on_blur = false;
-		text_box.width  = 500;
-		text_box.height = 300;
+		text_box.width  = 50;
+		text_box.height = 30;
 		text_box.anchor_left.pixel(0);
 		text_box.anchor_right.pixel(0);
 		text_box.anchor_top.pixel(0);
