@@ -254,6 +254,10 @@ class TriggerToolHandler
 			if(is_editing)
 			{
 				do_update_edit_properties();
+				if(added)
+				{
+					store_all_triggers_data(true);
+				}
 			}
 			return;
 		}
@@ -517,8 +521,7 @@ class TriggerToolHandler
 			script.window_manager.register_element(edit_window);
 		}
 		
-		// Already editing - assume a trigger was added to the selection so just store the last one.
-		store_all_triggers_data(is_editing);
+		store_all_triggers_data();
 		
 		is_editing = true;
 		do_update_edit_properties();
