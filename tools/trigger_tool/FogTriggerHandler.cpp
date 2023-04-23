@@ -4,6 +4,7 @@
 #include '../../../../lib/ui3/elements/Button.cpp';
 #include '../../../../lib/ui3/elements/ColourSwatch.cpp';
 #include '../../../../lib/ui3/elements/colour_picker/ColourPicker.cpp';
+#include '../../../../lib/ui3/elements/colour_picker/ColourSlider.cpp';
 #include '../../../../lib/ui3/elements/extra/Panel.cpp';
 #include '../../../../lib/ui3/elements/Toolbar.cpp';
 #include '../../../../lib/ui3/elements/Window.cpp';
@@ -21,6 +22,8 @@ class FogTriggerHandler : TriggerToolHandler
 	private ColourSwatch@ override_colour_swatch;
 	private Checkbox@ override_colour_checkbox;
 	private ColourPicker@ hsl_adjuster;
+	private ColourSlider@ contrast_slider;
+	private TextBox@ contrast_input;
 	private Panel@ filter_box;
 	private Checkbox@ filter_layer_selected_checkbox;
 	private ColourSwatch@ filter_colour_swatch;
@@ -171,6 +174,9 @@ class FogTriggerHandler : TriggerToolHandler
 		const float tolerance_a = filter_colour_tolerance.a;
 		const int selected_layer = filter_layer_selected_checkbox.checked
 			? script.layer : -1;
+		
+		const float contrast = get_contrast_percent();
+		puts(contrast);
 		
 		const int SkyTop = -4;
 		const int SkyMid = -3;
@@ -332,7 +338,6 @@ class FogTriggerHandler : TriggerToolHandler
 		return toolbar;
 	}
 	
-	// TODO: Hide swatch tooltips when opening
 	protected void create_edit_window() override
 	{
 		UI@ ui = script.ui;
@@ -386,11 +391,46 @@ class FogTriggerHandler : TriggerToolHandler
 		edit_window.add_child(hsl_adjuster);
 		//}
 		
+		// Contrast
+		//{
+		@contrast_slider = ColourSlider(ui);
+		contrast_slider.value = 0.5;
+		contrast_slider.anchor_top.next_to(hsl_adjuster);
+		contrast_slider.anchor_left.pixel(0);
+		contrast_slider.change.on(EventCallback(on_contrast_slider_change));
+		edit_window.add_child(contrast_slider);
+		
+		Label@ contrast_label = Label(ui, 'C');
+		contrast_label.set_font(font::ENVY_BOLD, 20);
+		contrast_label.text_align_h = TextAlign::Centre;
+		contrast_label.align_v = GraphicAlign::Middle;
+		contrast_label.mouse_enabled = false;
+		contrast_label.width = 24;
+		contrast_label.anchor_left.next_to(contrast_slider);
+		contrast_label.anchor_top.sibling(contrast_slider, 1);
+		contrast_label.anchor_bottom.sibling(contrast_slider, 1);
+		edit_window.add_child(contrast_label);
+		
+		@contrast_input = TextBox(ui, '', font::ENVY_BOLD, 20);
+		contrast_input.name = 'C';
+		contrast_input.width = 65;
+		contrast_input.character_validation = Decimal;
+		contrast_input.allow_negative = true;
+		contrast_input.anchor_left.next_to(contrast_label);
+		contrast_input.anchor_right.pixel(0);
+		contrast_input.anchor_top.sibling(contrast_slider, 1);
+		contrast_input.anchor_bottom.sibling(contrast_slider, 1);
+		contrast_input.change.on(EventCallback(on_contrast_input_change));
+		edit_window.add_child(contrast_input);
+		
+		hsl_adjuster.navigation.add_last(contrast_input);
+		//}
+		
 		// Filter box
 		//{
 		@filter_box = Panel(ui);
 		filter_box.collapsed = true;
-		filter_box.anchor_top.next_to(hsl_adjuster, style.spacing * 2);
+		filter_box.anchor_top.next_to(contrast_slider, style.spacing * 2);
 		filter_box.anchor_left.pixel(0);
 		filter_box.anchor_right.pixel(0);
 		filter_box.width = 100;
@@ -522,8 +562,10 @@ class FogTriggerHandler : TriggerToolHandler
 		hsl_adjuster.h = 0.5;
 		hsl_adjuster.s = 0.5;
 		hsl_adjuster.l = 0.5;
+		contrast_slider.value = 0.5;
 		
 		update_properties_for_override();
+		update_contrast_input();
 	}
 	
 	protected void update_properties_for_override()
@@ -539,6 +581,21 @@ class FogTriggerHandler : TriggerToolHandler
 		
 		filter_layer_select.type = has_sub_layers
 			? LayerSelectorType::Both : LayerSelectorType::Layers;
+	}
+	
+	protected void update_contrast_slider()
+	{
+		contrast_slider.value = clamp01((contrast_input.float_value + 1) / 2.0);
+	}
+	
+	protected void update_contrast_input()
+	{
+		contrast_input.float_value = get_contrast_percent();
+	}
+	
+	protected float get_contrast_percent() const
+	{
+		return (contrast_slider.value - 0.5) * 2;
 	}
 	
 	// //////////////////////////////////////////////////////////
@@ -612,6 +669,28 @@ class FogTriggerHandler : TriggerToolHandler
 			return;
 		
 		update_properties_for_override();
+		do_adjust();
+	}
+	
+	private void on_contrast_slider_change(EventInfo@ event)
+	{
+		if(ignore_edit_ui_events)
+			return;
+		
+		ignore_edit_ui_events = true;
+		update_contrast_input();
+		ignore_edit_ui_events = false;
+		do_adjust();
+	}
+	
+	private void on_contrast_input_change(EventInfo@ event)
+	{
+		if(ignore_edit_ui_events)
+			return;
+		
+		ignore_edit_ui_events = true;
+		update_contrast_slider();
+		ignore_edit_ui_events = false;
 		do_adjust();
 	}
 	
