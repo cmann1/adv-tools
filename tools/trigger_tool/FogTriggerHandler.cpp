@@ -5,10 +5,12 @@
 #include '../../../../lib/ui3/elements/ColourSwatch.cpp';
 #include '../../../../lib/ui3/elements/colour_picker/ColourPicker.cpp';
 #include '../../../../lib/ui3/elements/colour_picker/ColourSlider.cpp';
+#include '../../../../lib/ui3/elements/MultiButton.cpp';
 #include '../../../../lib/ui3/elements/extra/Panel.cpp';
 #include '../../../../lib/ui3/elements/Toolbar.cpp';
 #include '../../../../lib/ui3/elements/Window.cpp';
 
+#include 'ContrastType.cpp';
 #include 'FogTriggerHandlerData.cpp';
 
 const string TRIGGERS_SPRITES_BASE = SPRITES_BASE + 'triggers/';
@@ -24,6 +26,7 @@ class FogTriggerHandler : TriggerToolHandler
 	private ColourPicker@ hsl_adjuster;
 	private ColourSlider@ contrast_slider;
 	private TextBox@ contrast_input;
+	private MultiButton@ contrast_type_button;
 	private Panel@ filter_box;
 	private Checkbox@ filter_layer_selected_checkbox;
 	private ColourSwatch@ filter_colour_swatch;
@@ -38,6 +41,7 @@ class FogTriggerHandler : TriggerToolHandler
 	/* True if any of the selected triggers have sub layers. */
 	private bool has_sub_layers;
 	private int last_filtered_layer = -1;
+	private ContrastType contrast_type = Simple1;
 	
 	FogTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
@@ -175,121 +179,206 @@ class FogTriggerHandler : TriggerToolHandler
 		const int selected_layer = filter_layer_selected_checkbox.checked
 			? script.layer : -1;
 		
-		const float contrast = get_contrast_percent();
-		puts(contrast);
+		float contrast = get_contrast_percent();
+		const bool has_contrast = !approximately(contrast, 0);
+		const bool average_contrast = contrast_type == Average;
+		
+		if(has_contrast)
+		{
+			// Convert from -1>1 to ranges needed for algorithm
+			switch(contrast_type)
+			{
+				// 0>2
+				case Simple1:
+					contrast += 1; break;
+				// -255>255
+				case Simple2:
+					contrast *= 255; break;
+				// 0>255
+				case Average:
+					contrast = contrast < 1 ? (1 + contrast) / (1 - contrast) : 255; break;
+			}
+		}
+		
+		float mean_brightness = 0;
+		int mean_brightness_count = 0;
+		
+		const int AveragePass = 0;
+		const int AdjustPass = 1;
+		const int first_pass = average_contrast ? AveragePass : AdjustPass;
 		
 		const int SkyTop = -4;
 		const int SkyMid = -3;
 		const int SkyBot = -2;
 		const int DefaultSubLayer = -1;
 		
-		for(uint i = 0; i < select_list.length; i++)
+		for(int pass = first_pass; pass <= AdjustPass; pass++)
 		{
-			FogTriggerHandlerData@ data = selected(i);
-			fog_setting@ fog = data.fog;
-			fog_setting@ to_fog = data.edit_fog;
-			
-			for (int layer = SkyTop; layer <= 20; layer++)
+			if(pass == AdjustPass && has_contrast && average_contrast && mean_brightness_count > 0)
 			{
-				if(layer == -1)
-					continue;
-				if(
-					layer == SkyTop && !filter_sky_top_checkbox.checked ||
-					layer == SkyMid && !filter_sky_mid_checkbox.checked ||
-					layer == SkyBot && !filter_sky_bot_checkbox.checked)
-					continue;
-				// Sky layers
-				if(selected_layer != -1 && layer < -1)
-					continue;
-				if(selected_layer != -1 && layer >= 0 && layer != selected_layer)
-					continue;
-				if(!all_layers && !filter_layer_select.is_layer_selected(layer))
-					continue;
-				
-				const int sub_layer_start = layer >= 0 ? DefaultSubLayer : layer;
-				const int sub_layer_end = layer >= 0 ? (data.has_sub_layers ? 24 : -1) : layer;
-				
-				for (int sub_layer = sub_layer_start; sub_layer <= sub_layer_end; sub_layer++)
-				{
-					if(data.has_sub_layers && (
-						!all_sub_layers && sub_layer > DefaultSubLayer && !filter_layer_select.is_sub_layer_selected(sub_layer) ||
-						sub_layer == DefaultSubLayer && !filter_default_sub_layers)
-					)
-						continue;
-					
-					uint clr;
-					int r, g, b, a;
-					float h, s, v;
-					
-					if(!override_colour_checkbox.checked || has_tolerance)
-					{
-						switch(sub_layer)
-						{
-							case SkyTop: clr = fog.bg_top(); break;
-							case SkyMid: clr = fog.bg_mid(); break;
-							case SkyBot: clr = fog.bg_bot(); break;
-							case DefaultSubLayer: clr = fog.layer_colour(layer); break;
-							default: clr = fog.colour(layer, sub_layer); break;
-						}
-						
-						int_to_rgba(clr, r, g, b, a);
-						
-						if(has_tolerance)
-						{
-							rgb_to_hsv(r, g, b, h, s, v);
-							
-							if(
-								abs(h - filter_h) > tolerance_h ||
-								abs(s - filter_s) > tolerance_s ||
-								abs(v - filter_v) > tolerance_v ||
-								abs(a - filter_a) > tolerance_a
-							)
-								continue;
-						}
-					}
-					
-					if(!override_colour_checkbox.checked)
-					{
-						if(!has_tolerance)
-						{
-							rgb_to_hsv(r, g, b, h, s, v);
-						}
-						
-						h = (h + adjust_h) % 1;
-						if(h < 0)
-						{
-							h += 1;
-						}
-						
-						s = clamp01(s + adjust_s);
-						v = clamp01(v + adjust_v);
-						
-						clr = hsv_to_rgb(h, s, v) | (a << 24);
-					}
-					else
-					{
-						clr = override_colour_swatch.colour;
-					}
-					
-					switch(sub_layer)
-					{
-						case SkyTop: to_fog.bg_top(clr); break;
-						case SkyMid: to_fog.bg_mid(clr); break;
-						case SkyBot: to_fog.bg_bot(clr); break;
-						case DefaultSubLayer: to_fog.default_colour(layer, clr); break;
-						default: to_fog.colour(layer, sub_layer, clr); break;
-					}
-					
-					if(layer < 0)
-						break;
-				}
+				mean_brightness /= mean_brightness_count;
 			}
 			
-			to_fog.copy_to(data.trigger);
-			
-			if(i == 0)
+			for(uint i = 0; i < select_list.length; i++)
 			{
-				script.cam.change_fog(to_fog, 0);
+				FogTriggerHandlerData@ data = selected(i);
+				fog_setting@ fog = data.fog;
+				fog_setting@ to_fog = data.edit_fog;
+				
+				for (int layer = SkyTop; layer <= 20; layer++)
+				{
+					if(layer == -1)
+						continue;
+					if(
+						layer == SkyTop && !filter_sky_top_checkbox.checked ||
+						layer == SkyMid && !filter_sky_mid_checkbox.checked ||
+						layer == SkyBot && !filter_sky_bot_checkbox.checked)
+						continue;
+					// Sky layers
+					if(selected_layer != -1 && layer < -1)
+						continue;
+					if(selected_layer != -1 && layer >= 0 && layer != selected_layer)
+						continue;
+					if(!all_layers && !filter_layer_select.is_layer_selected(layer))
+						continue;
+					
+					const int sub_layer_start = layer >= 0 ? DefaultSubLayer : layer;
+					const int sub_layer_end = layer >= 0 ? (data.has_sub_layers ? 24 : -1) : layer;
+					
+					for (int sub_layer = sub_layer_start; sub_layer <= sub_layer_end; sub_layer++)
+					{
+						if(data.has_sub_layers && (
+							!all_sub_layers && sub_layer > DefaultSubLayer && !filter_layer_select.is_sub_layer_selected(sub_layer) ||
+							sub_layer == DefaultSubLayer && !filter_default_sub_layers)
+						)
+							continue;
+						
+						uint clr;
+						int r, g, b, a;
+						float h, s, v;
+						
+						// Fetch the colour
+						if(has_tolerance || has_contrast || pass == AveragePass || !override_colour_checkbox.checked)
+						{
+							switch(sub_layer)
+							{
+								case SkyTop: clr = fog.bg_top(); break;
+								case SkyMid: clr = fog.bg_mid(); break;
+								case SkyBot: clr = fog.bg_bot(); break;
+								case DefaultSubLayer: clr = fog.layer_colour(layer); break;
+								default: clr = fog.colour(layer, sub_layer); break;
+							}
+							
+							int_to_rgba(clr, r, g, b, a);
+							
+							if(has_tolerance && pass == AdjustPass)
+							{
+								rgb_to_hsv(r, g, b, h, s, v);
+								
+								if(
+									abs(h - filter_h) > tolerance_h ||
+									abs(s - filter_s) > tolerance_s ||
+									abs(v - filter_v) > tolerance_v ||
+									abs(a - filter_a) > tolerance_a
+								)
+								{
+									if(layer < 0)
+										break;
+									else
+										continue;
+								}
+							}
+							
+							if(pass == AveragePass)
+							{
+								mean_brightness += (r + g + b) / 3.0;
+								mean_brightness_count++;
+								
+								if(layer < 0)
+									break;
+								else
+									continue;
+							}
+						}
+						
+						// Adjust
+						if(!override_colour_checkbox.checked)
+						{
+							if(!has_tolerance)
+							{
+								rgb_to_hsv(r, g, b, h, s, v);
+							}
+							
+							h = (h + adjust_h) % 1;
+							if(h < 0)
+							{
+								h += 1;
+							}
+							
+							s = clamp01(s + adjust_s);
+							v = clamp01(v + adjust_v);
+							
+							clr = hsv_to_rgb(h, s, v) | (a << 24);
+							
+							if(has_contrast)
+							{
+								int_to_rgba(clr, r, g, b, a);
+								float r1, g1, b1;
+								
+								switch(contrast_type)
+								{
+									case Simple1:
+									{
+										r1 = (r - 128) * contrast + 128;
+										g1 = (g - 128) * contrast + 128;
+										b1 = (b - 128) * contrast + 128;
+									} break;
+									case Simple2:
+									{
+										const float factor = (259 * (contrast + 255)) / (255 * (259 - contrast));
+										r1 = (r - 128) * factor + 128;
+										g1 = (g - 128) * factor + 128;
+										b1 = (b - 128) * factor + 128;
+									} break;
+									case Average:
+									{
+										r1 = (r - mean_brightness) * contrast + mean_brightness;
+										g1 = (g - mean_brightness) * contrast + mean_brightness;
+										b1 = (b - mean_brightness) * contrast + mean_brightness;
+									} break;
+								}
+								
+								r = clamp(int(r1), 0, 255);
+								g = clamp(int(g1), 0, 255);
+								b = clamp(int(b1), 0, 255);
+								clr = rgba(r, g, b, a);
+							}
+						}
+						else
+						{
+							clr = override_colour_swatch.colour;
+						}
+						
+						switch(sub_layer)
+						{
+							case SkyTop: to_fog.bg_top(clr); break;
+							case SkyMid: to_fog.bg_mid(clr); break;
+							case SkyBot: to_fog.bg_bot(clr); break;
+							case DefaultSubLayer: to_fog.default_colour(layer, clr); break;
+							default: to_fog.colour(layer, sub_layer, clr); break;
+						}
+						
+						if(layer < 0)
+							break;
+					}
+				}
+				
+				to_fog.copy_to(data.trigger);
+				
+				if(i == 0)
+				{
+					script.cam.change_fog(to_fog, 0);
+				}
 			}
 		}
 		
@@ -391,9 +480,27 @@ class FogTriggerHandler : TriggerToolHandler
 		edit_window.add_child(hsl_adjuster);
 		//}
 		
+		// Contrast type button
+		//{
+		@contrast_type_button = MultiButton(ui);
+		contrast_type_button.add_label('simple1', 'C1', 'Contrast Algorithm');
+		contrast_type_button.add_label('simple2', 'C2', 'Contrast Algorithm');
+		contrast_type_button.add_label('average', 'C3', 'Contrast Algorithm');
+		contrast_type_button.set_font('envy_bold', 20);
+		contrast_type_button.height = override_colour_swatch.height;
+		contrast_type_button.anchor_right.sibling(hsl_adjuster, 1);
+		contrast_type_button.anchor_top.sibling(override_colour_swatch, 0.5).align_v(0.5);
+		contrast_type_button.select.on(EventCallback(on_contrast_type_select));
+		edit_window.add_child(contrast_type_button);
+		//}
+		
 		// Contrast
 		//{
 		@contrast_slider = ColourSlider(ui);
+		contrast_slider.type = TriColour;
+		contrast_slider.colour = 0xff333333;
+		contrast_slider.colour2 = 0xffdddddd;
+		contrast_slider.colour3 = 0xff333333;
 		contrast_slider.value = 0.5;
 		contrast_slider.anchor_top.next_to(hsl_adjuster);
 		contrast_slider.anchor_left.pixel(0);
@@ -692,6 +799,28 @@ class FogTriggerHandler : TriggerToolHandler
 		update_contrast_slider();
 		ignore_edit_ui_events = false;
 		do_adjust();
+	}
+	
+	private void on_contrast_type_select(EventInfo@ event)
+	{
+		
+		if(ignore_edit_ui_events)
+			return;
+		
+		const string type = contrast_type_button.selected_name;
+		
+		if(type == 'simple1')
+			contrast_type = Simple1;
+		else if(type == 'simple2')
+			contrast_type = Simple2;
+		else if(type == 'average')
+			contrast_type = Average;
+		
+		const bool has_contrast = !approximately(get_contrast_percent(), 0);
+		if(has_contrast)
+		{
+			do_adjust();
+		}
 	}
 	
 	private void on_filter_box_collapsed(EventInfo@ event)
