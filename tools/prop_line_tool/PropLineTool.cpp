@@ -45,6 +45,9 @@ class PropLineTool : Tool
 	
 	private bool dragging_start_point;
 	private bool mouse_moved;
+	private bool is_angle_locked;
+	private bool is_angle_lock_persisted;
+	private float lock_angle;
 	
 	private int props_list_size = 32;
 	private int props_count;
@@ -182,12 +185,23 @@ class PropLineTool : Tool
 	
 	private void state_idle()
 	{
+		if(!is_angle_lock_persisted)
+		{
+			is_angle_locked = false;
+		}
+		
 		user_update_scroll_mode();
 		user_update_layer();
 		user_update_rotation(rotation_mode != PropLineRotationMode::Auto);
 		user_update_scale();
 		user_update_mirror();
 		user_update_snap();
+		user_update_lock_angle(true);
+		
+		if(is_angle_locked)
+		{
+			lock_angle = rotation * DEG2RAD;
+		}
 		
 		update_start_point();
 		layer = script.layer;
@@ -286,10 +300,12 @@ class PropLineTool : Tool
 		user_update_spacing();
 		user_update_mirror();
 		user_update_repeat();
+		user_update_lock_angle();
 		update_end_point(
 			!dragging_start_point || !mouse_moved,
 			dragging_start_point ? drag_ox : 0.0,
-			dragging_start_point ? drag_oy : 0.0);
+			dragging_start_point ? drag_oy : 0.0,
+			!dragging_start_point && is_angle_locked);
 		
 		if(mouse.right_press)
 		{
@@ -358,6 +374,7 @@ class PropLineTool : Tool
 		user_update_spacing();
 		user_update_mirror();
 		user_update_repeat();
+		user_update_lock_angle();
 		
 		const bool drag_p1 = script.handles.circle(x1, y1, Settings::RotateHandleSize,
 			Settings::RotateHandleColour, Settings::RotateHandleHoveredColour);
@@ -384,11 +401,11 @@ class PropLineTool : Tool
 		{
 			if(drag_handle == DragHandleType::Start)
 			{
-				update_start_point(true, drag_ox, drag_oy);
+				update_start_point(true, drag_ox, drag_oy, is_angle_locked);
 			}
 			else if(drag_handle == DragHandleType::End)
 			{
-				update_end_point(true, drag_ox, drag_oy);
+				update_end_point(true, drag_ox, drag_oy, is_angle_locked);
 			}
 			else
 			{
@@ -434,14 +451,22 @@ class PropLineTool : Tool
 			null , PopupPosition::Below);
 	}
 	
-	private void update_start_point(const bool allow_angle_snap=false, const float ox=0, const float oy=0)
+	private void update_start_point(const bool allow_angle_snap=false, const float ox=0, const float oy=0, const bool do_lock_angle=false)
 	{
 		const float x1_prev = x1;
 		const float y1_prev = y1;
 		
 		script.transform(mouse.x + ox, mouse.y + oy, 22, layer, x1, y1);
 		
-		if(snap_to_grid || !allow_angle_snap)
+		if(do_lock_angle)
+		{
+			const float dir_x = -cos(lock_angle);
+			const float dir_y = -sin(lock_angle);
+			project(x1 - x2, y1 - y2, dir_x, dir_y, x1, y1);
+			x1 += x2;
+			y1 += y2;
+		}
+		else if(snap_to_grid || !allow_angle_snap)
 		{
 			script.snap(x1, y1, x1, y1);
 		}
@@ -453,14 +478,22 @@ class PropLineTool : Tool
 		recaclulate_props = recaclulate_props || (x1 != x1_prev || y1 != y1_prev);
 	}
 	
-	private void update_end_point(const bool allow_angle_snap=true, const float ox=0, const float oy=0)
+	private void update_end_point(const bool allow_angle_snap=true, const float ox=0, const float oy=0, const bool do_lock_angle=false)
 	{
 		const float x2_prev = x2;
 		const float y2_prev = y2;
 		
 		script.transform(mouse.x + ox, mouse.y + oy, 22, layer, x2, y2);
 		
-		if(snap_to_grid || !allow_angle_snap)
+		if(do_lock_angle)
+		{
+			const float dir_x = cos(lock_angle);
+			const float dir_y = sin(lock_angle);
+			project(x2 - x1, y2 - y1, dir_x, dir_y, x2, y2);
+			x2 += x1;
+			y2 += y1;
+		}
+		else if(snap_to_grid || !allow_angle_snap)
 		{
 			script.snap(x2, y2, x2, y2);
 		}
@@ -743,6 +776,31 @@ class PropLineTool : Tool
 		{
 			update_repeat_spacing(repeat_spacing - (script.shift.down ? 10.0 : script.ctrl.down ? 2.0 : 1.0));
 		}
+	}
+	
+	private void user_update_lock_angle(const bool lock_angle_from_rotation = false)
+	{
+		if(!script.input.key_check_pressed_vk(VK::A))
+			return;
+		
+		if(!is_angle_locked)
+		{
+			is_angle_locked = true;
+			
+			lock_angle = lock_angle_from_rotation
+				? rotation * DEG2RAD : atan2(y2 - y1, x2 - x1);
+		}
+		else if(!is_angle_lock_persisted)
+		{
+			is_angle_lock_persisted = true;
+		}
+		else
+		{
+			is_angle_locked = false;
+			is_angle_lock_persisted = false;
+		}
+		
+		script.show_info('Angle ' + (is_angle_locked ? '' : 'un') + 'locked' + (is_angle_locked && !is_angle_lock_persisted ? ' (temp)' : ''), 0.75);
 	}
 	
 	private void calculate_auto_spacing()
