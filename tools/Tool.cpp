@@ -100,7 +100,7 @@ class Tool
 		// Use the provided default
 		if(key.vk <= 0)
 		{
-			key.set(default_key, default_modifiers);
+			key.set(default_key, default_modifiers, priority);
 		}
 		
 		// If there isn't a config or default, check the parent tool config

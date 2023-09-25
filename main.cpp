@@ -443,7 +443,6 @@ class AdvToolScript
 		add_tool('Tiles',		EdgeBrushTool(this));
 		add_tool('Props',		PropTool(this));
 		add_tool('Props',		PropLineTool(this));
-		//add_tool('Triggers',	TextTool(this));
 		
 		sort_shortcut_tools();
 	}
