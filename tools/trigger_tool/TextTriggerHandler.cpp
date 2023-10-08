@@ -144,16 +144,14 @@ class TextTriggerHandler : TriggerToolHandler
 			if(check_edit_keys() == 1)
 			{
 				lock_input = true;
+				text_box.lock_input = true;
 			}
 		}
 		
 		// Consume Enter to prevent the default editing.
 		if(@selected_trigger != null && !script.ui_focus && !sub_ui_active() && script.return_press)
 		{
-			if(!script.ctrl.down && script.return_press)
-			{
-				script.input.key_clear_gvb(GVB::Return);
-			}
+			script.input.key_clear_gvb(GVB::Return);
 		}
 	}
 	

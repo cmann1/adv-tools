@@ -500,7 +500,7 @@ class TriggerToolHandler
 			}
 		}
 		
-		return 1;
+		return 0;
 	}
 	
 	/**
