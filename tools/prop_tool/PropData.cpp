@@ -27,6 +27,7 @@ class PropData : SelectableData
 	string sprite_name;
 	
 	float x, y;
+	int layer, sub_layer;
 	private float angle;
 	private float layer_scale;
 	private float backdrop_scale;
@@ -112,7 +113,7 @@ class PropData : SelectableData
 	
 	void step()
 	{
-		script.transform(x, y, prop.layer(), 22, aabb_x, aabb_y);
+		script.transform(x, y, layer, sub_layer, 22, 22, aabb_x, aabb_y);
 	}
 	
 	void draw(const PropToolHighlight highlight)
@@ -163,12 +164,14 @@ class PropData : SelectableData
 		x = prop.x();
 		y = prop.y();
 		
-		script.transform(x, y, prop.layer(), 22, aabb_x, aabb_y);
-		
+		layer = prop.layer();
+		sub_layer = prop.sub_layer();
 		angle = prop.rotation() * DEG2RAD * sign(prop_scale_x) * sign(prop_scale_y);
-		layer_scale = prop.layer() <= 5 ? script.layer_scale(prop.layer()) : 1.0;
-		backdrop_scale = prop.layer() <= 5 ? 2.0 : 1.0;
-		draw_scale = script.layer_scale(prop.layer()) / script.layer_scale(22);
+		layer_scale = layer <= 5 ? script.layer_scale(layer, sub_layer) : 1.0;
+		backdrop_scale = layer <= 5 ? 2.0 : 1.0;
+		draw_scale = script.layer_scale(layer, sub_layer) / script.layer_scale(22, 22);
+		
+		script.transform(x, y, layer, sub_layer, 22, 22, aabb_x, aabb_y);
 		
 		const float cos_angle = cos(angle);
 		const float sin_angle = sin(angle);
@@ -240,8 +243,8 @@ class PropData : SelectableData
 			}
 		}
 		
-		script.transform_size(local_x1, local_y1, prop.layer(), 22, aabb_x1, aabb_y1);
-		script.transform_size(local_x2, local_y2, prop.layer(), 22, aabb_x2, aabb_y2);
+		script.transform_size(local_x1, local_y1, layer, sub_layer, 22, 22, aabb_x1, aabb_y1);
+		script.transform_size(local_x2, local_y2, layer, sub_layer, 22, 22, aabb_x2, aabb_y2);
 		
 		draw_scale_x *= draw_scale;
 		draw_scale_y *= draw_scale;
@@ -318,27 +321,43 @@ class PropData : SelectableData
 	{
 		if(sublayer)
 		{
-			prop.sub_layer(clamp(prop.sub_layer() + dir, 0, 24));
+			const int new_sub_layer = clamp(sub_layer + dir, 0, 24);
+			
+			if(new_sub_layer != sub_layer)
+			{
+				const uint layer = prop.layer();
+				if(script.layer_scale(layer, sub_layer) != script.layer_scale(layer, new_sub_layer))
+				{
+					requires_update = true;
+				}
+				
+				sub_layer = new_sub_layer;
+				prop.sub_layer(new_sub_layer);
+			}
 		}
 		else
 		{
-			const uint layer = prop.layer();
-			const uint new_layer = clamp(layer + dir, 0, 20);
-			
-			if(new_layer <= 5 && layer > 5 || new_layer > 5 && layer <= 5)
-			{
-				script.g.remove_prop(prop);
-				prop.layer(new_layer);
-				script.g.add_prop(prop);
-			}
-			else
-			{
-				prop.layer(new_layer);
-			}
+			const int new_layer = clamp(layer + dir, 0, 20);
 			
 			if(new_layer != layer)
 			{
-				requires_update = true;
+				if(script.layer_scale(layer, sub_layer) != script.layer_scale(new_layer, sub_layer))
+				{
+					requires_update = true;
+				}
+				
+				if(new_layer <= 5 && layer > 5 || new_layer > 5 && layer <= 5)
+				{
+					script.g.remove_prop(prop);
+					prop.layer(new_layer);
+					script.g.add_prop(prop);
+				}
+				else
+				{
+					prop.layer(new_layer);
+				}
+				
+				layer = new_layer;
 			}
 		}
 		
@@ -383,7 +402,7 @@ class PropData : SelectableData
 		
 		// Calculate mouse "local" position relative to prop rotation and scale
 		
-		tool.script.transform(px, py, 22, prop.layer(), px, py);
+		tool.script.transform(px, py, 22, 22, layer, sub_layer, px, py);
 		
 		rotate(
 			(px - x) / scale_x,
@@ -583,4 +602,11 @@ class PropData : SelectableData
 		update();
 	}
 	
+	// IWorldBoundingBox
+	
+	void get_bounding_box_world(float &out x1, float &out y1, float &out x2, float &out y2) override
+	{
+		script.transform(aabb_x + aabb_x1, aabb_y + aabb_y1, layer, sub_layer, 22, 22, x1, y1);
+		script.transform(aabb_x + aabb_x2, aabb_y + aabb_y2, layer, sub_layer, 22, 22, x2, y2);
+	}
 }

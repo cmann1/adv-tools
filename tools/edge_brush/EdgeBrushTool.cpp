@@ -359,8 +359,8 @@ class EdgeBrushTool : Tool
 				data.select_edge(edge);
 				
 				float x1, y1, x2, y2;
-				script.transform(data.ex1, data.ey1, layer, 22, x1, y1);
-				script.transform(data.ex2, data.ey2, layer, 22, x2, y2);
+				script.transform(data.ex1, data.ey1, layer, 10, 22, 22, x1, y1);
+				script.transform(data.ex2, data.ey2, layer, 10, 22, 22, x2, y2);
 				
 				const uint clr = data.get_colour();
 				
@@ -421,9 +421,9 @@ class EdgeBrushTool : Tool
 		precision_edge.select_edge(precision_edge_index);
 		
 		float ex1, ey1, ex2, ey2, px, py;
-		script.transform(precision_edge.ex1, precision_edge.ey1, layer, 22, ex1, ey1);
-		script.transform(precision_edge.ex2, precision_edge.ey2, layer, 22, ex2, ey2);
-		script.transform(precision_edge_px, precision_edge_py, layer, 22, px, py);
+		script.transform(precision_edge.ex1, precision_edge.ey1, layer, 10, 22, 22, ex1, ey1);
+		script.transform(precision_edge.ex2, precision_edge.ey2, layer, 10, 22, 22, ex2, ey2);
+		script.transform(precision_edge_px, precision_edge_py, layer, 10, 22, 22, px, py);
 		
 		const uint clr = precision_edge.get_colour() | 0xff000000;
 		
@@ -603,9 +603,9 @@ class EdgeBrushTool : Tool
 		const bool reset_edges = update_edges == 1 && script.ctrl.down;
 		
 		float mx, my;
-		script.mouse_layer(layer, mx, my);
+		script.mouse_layer(layer, 10, mx, my);
 		
-		const float layer_radius = script.transform_size(brush_radius, mouse.layer, layer);
+		const float layer_radius = script.transform_size(brush_radius, mouse, layer, 10);
 		const float radius_sqr = layer_radius * layer_radius;
 		const int tx1 = floor_int((mx - layer_radius) * PIXEL2TILE);
 		const int ty1 = floor_int((my - layer_radius) * PIXEL2TILE);
@@ -744,7 +744,7 @@ class EdgeBrushTool : Tool
 		const bool render_edges = (render_mode == Always || script.shift.down) || render_mode == DrawOnly && update_edges != 0;
 		
 		float mx, my;
-		script.mouse_layer(layer, mx, my);
+		script.mouse_layer(layer, 10, mx, my);
 		const int mtx = floor_int(mx * PIXEL2TILE);
 		const int mty = floor_int(my * PIXEL2TILE);
 		

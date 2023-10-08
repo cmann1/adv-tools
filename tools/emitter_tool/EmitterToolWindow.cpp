@@ -102,9 +102,9 @@ class EmitterToolWindow
 		layer_button.y = emitter_id_select.y + emitter_id_select.height + style.spacing;
 		@layer_button.tooltip = PopupOptions(ui, 'Layer');
 		layer_button.layer_select.set_selected_layer(tool.layer);
-		layer_button.layer_select.set_selected_sub_layer(tool.sublayer);
+		layer_button.layer_select.set_selected_sub_layer(tool.sub_layer);
 		layer_button.layer_select.layer_select.on(EventCallback(on_layer_change));
-		layer_button.layer_select.sub_layer_select.on(EventCallback(on_sublayer_change));
+		layer_button.layer_select.sub_layer_select.on(EventCallback(on_sub_layer_change));
 		window.add_child(layer_button);
 		
 		// Rotation
@@ -197,7 +197,7 @@ class EmitterToolWindow
 			
 			emitter_id_select.selected_value = get_emitter_name(tool.emitter_id);
 			layer_button.layer_select.set_selected_layer(tool.layer);
-			layer_button.layer_select.set_selected_sub_layer(tool.sublayer);
+			layer_button.layer_select.set_selected_sub_layer(tool.sub_layer);
 			rotation_wheel.degrees = tool.rotation;
 			id_label.text = tool.emitter_id < 0 ? '-' : tool.emitter_id + '';
 			emitter_id_label.text = '-';
@@ -210,12 +210,12 @@ class EmitterToolWindow
 			
 			tool.emitter_id	= data.emitter_id;
 			tool.layer			= data.layer;
-			tool.sublayer		= data.sublayer;
+			tool.sub_layer		= data.sub_layer;
 			tool.rotation		= data.rotation;
 			
 			emitter_id_select.selected_value = get_emitter_name(tool.emitter_id);
 			layer_button.layer_select.set_selected_layer(tool.layer);
-			layer_button.layer_select.set_selected_sub_layer(tool.sublayer);
+			layer_button.layer_select.set_selected_sub_layer(tool.sub_layer);
 			rotation_wheel.degrees = tool.rotation;
 			id_label.text = tool.emitter_id < 0 ? '-' : tool.emitter_id + '';
 			emitter_id_label.text = '[' + selected_emitters[0].emitter.id() + ']';
@@ -231,7 +231,7 @@ class EmitterToolWindow
 			
 			int emitter_id = data.emitter_id;
 			int layer = data.layer;
-			int sublayer = data.sublayer;
+			int sub_layer = data.sub_layer;
 			float rotation = data.rotation;
 			bool same_rotation = true;
 			
@@ -249,9 +249,9 @@ class EmitterToolWindow
 					layer = -1;
 				}
 				
-				if(sublayer != data.sublayer)
+				if(sub_layer != data.sub_layer)
 				{
-					sublayer = -1;
+					sub_layer = -1;
 				}
 				
 				if(!approximately(rotation, data.rotation))
@@ -278,8 +278,8 @@ class EmitterToolWindow
 			else
 				layer_button.layer_select.select_layers_none(false, true);
 			
-			if(sublayer != -1)
-				layer_button.layer_select.set_selected_sub_layer(sublayer);
+			if(sub_layer != -1)
+				layer_button.layer_select.set_selected_sub_layer(sub_layer);
 			else
 				layer_button.layer_select.select_sub_layers_none(false, true);
 			
@@ -315,15 +315,15 @@ class EmitterToolWindow
 		{
 			EmitterData@ data = @selected_emitters[0];
 			tool.layer		= data.layer;
-			tool.sublayer	= data.sublayer;
+			tool.sub_layer	= data.sub_layer;
 			layer_button.layer_select.set_selected_layer(tool.layer);
-			layer_button.layer_select.set_selected_sub_layer(tool.sublayer);
+			layer_button.layer_select.set_selected_sub_layer(tool.sub_layer);
 		}
 		else
 		{
 			EmitterData@ data = @selected_emitters[0];
 			int layer = data.layer;
-			int sublayer = data.sublayer;
+			int sub_layer = data.sub_layer;
 			
 			for(int i = 1; i < selected_emitters_count; i++)
 			{
@@ -333,9 +333,9 @@ class EmitterToolWindow
 					layer = -1;
 				}
 				
-				if(sublayer != data.sublayer)
+				if(sub_layer != data.sub_layer)
 				{
-					sublayer = -1;
+					sub_layer = -1;
 				}
 			}
 			
@@ -344,8 +344,8 @@ class EmitterToolWindow
 			else
 				layer_button.layer_select.select_layers_none(false, true);
 			
-			if(sublayer != -1)
-				layer_button.layer_select.set_selected_sub_layer(sublayer);
+			if(sub_layer != -1)
+				layer_button.layer_select.set_selected_sub_layer(sub_layer);
 			else
 				layer_button.layer_select.select_sub_layers_none(false, true);
 		}
@@ -451,18 +451,18 @@ class EmitterToolWindow
 		update_selection();
 	}
 	
-	private void on_sublayer_change(EventInfo@ event)
+	private void on_sub_layer_change(EventInfo@ event)
 	{
 		const int value = layer_button.layer_select.get_selected_sub_layer();
 		
 		if(value == -1)
 			return;
 		
-		tool.sublayer = value;
+		tool.sub_layer = value;
 		
 		for(int i = 0; i < selected_emitters_count; i++)
 		{
-			selected_emitters[i].update_sublayer(tool.sublayer);
+			selected_emitters[i].update_sub_layer(tool.sub_layer);
 		}
 		
 		update_selection();

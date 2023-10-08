@@ -110,8 +110,8 @@ class ExtendedTriggerTool : Tool
 		for(uint i = 0; i < hidden_text_triggers.length; i++)
 		{
 			entity@ e = hidden_text_triggers[i];
-			const float x = e.x();
-			const float y = e.y();
+			float x, y;
+			script.transform(e.x(), e.y(), e.layer(), 5, 22, 22, x, y);
 			script.g.draw_rectangle_world(22, 22, x - 10, y - 10, x + 10, y + 10, 0, hidden_clr);
 			script.circle(
 				22, 22,

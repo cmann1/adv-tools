@@ -62,8 +62,10 @@ class PropTool : Tool
 	
 	private int select_rect_pending;
 	private int action_layer;
+	private int action_sub_layer;
 	
 	private int selection_layer;
+	private int selection_sub_layer;
 	private float selection_x, selection_y;
 	private float selection_x1, selection_y1;
 	private float selection_x2, selection_y2;
@@ -80,6 +82,7 @@ class PropTool : Tool
 	
 	private bool has_custom_anchor;
 	private int custom_anchor_layer = 19;
+	private int custom_anchor_sub_layer = 0;
 	private float custom_anchor_x, custom_anchor_y;
 	private float custom_anchor_offset_x, custom_anchor_offset_y;
 	
@@ -252,28 +255,28 @@ class PropTool : Tool
 		
 		if(highlight && !has_custom_anchor && selected_props_count > 0)
 		{
-			draw_rotation_anchor(selection_x, selection_y, selection_layer);
+			draw_rotation_anchor(selection_x, selection_y, selection_layer, selection_sub_layer);
 		}
 		
 		if(highlight && !has_custom_anchor && @hovered_prop != null && !hovered_prop.selected)
 		{
-			draw_rotation_anchor(hovered_prop.anchor_x, hovered_prop.anchor_y, hovered_prop.prop.layer());
+			draw_rotation_anchor(hovered_prop.anchor_x, hovered_prop.anchor_y, hovered_prop.layer, hovered_prop.sub_layer);
 		}
 		
 		if(has_custom_anchor)
 		{
-			draw_rotation_anchor(custom_anchor_x, custom_anchor_y, custom_anchor_layer, true);
+			draw_rotation_anchor(custom_anchor_x, custom_anchor_y, custom_anchor_layer, custom_anchor_sub_layer, true);
 			
-			if(selected_props_count > 0 && !script.is_same_parallax(custom_anchor_layer, selection_layer))
+			if(selected_props_count > 0 && !script.is_same_layer_scale(custom_anchor_layer, custom_anchor_sub_layer, selection_layer, selection_sub_layer))
 			{
 				const uint clr = multiply_alpha(Settings::BoundingBoxColour, 0.5);
 				float x1, y1, x2, y2;
 				
-				script.transform(custom_anchor_x, custom_anchor_y, custom_anchor_layer, 22, x1, y1);
-				script.transform(custom_anchor_x, custom_anchor_y, selection_layer, 22, x2, y2);
+				script.transform(custom_anchor_x, custom_anchor_y, custom_anchor_layer, custom_anchor_sub_layer, 22, 22, x1, y1);
+				script.transform(custom_anchor_x, custom_anchor_y, selection_layer, selection_sub_layer, 22, 22, x2, y2);
 				
 				script.g.draw_line_world(22, 22, x1, y1, x2, y2, 1 / script.zoom, clr);
-				draw_rotation_anchor(custom_anchor_x, custom_anchor_y, selection_layer, true, 1, clr);
+				draw_rotation_anchor(custom_anchor_x, custom_anchor_y, selection_layer, selection_sub_layer, true, 1, clr);
 			}
 		}
 		
@@ -324,9 +327,12 @@ class PropTool : Tool
 			Settings::BoundingBoxLineWidth / script.zoom, Settings::BoundingBoxColour);
 	}
 	
-	private void draw_rotation_anchor(float x, float y, const int from_layer, const bool lock=false, const float size = 1.4, const uint clr=Settings::BoundingBoxColour)
+	private void draw_rotation_anchor(
+	
+		float x, float y, const int from_layer, const int from_sub_layer,
+		const bool lock=false, const float size = 1.4, const uint clr=Settings::BoundingBoxColour)
 	{
-		script.transform(x, y, from_layer, 22, x, y);
+		script.transform(x, y, from_layer, from_sub_layer, 22, 2, x, y);
 		
 		const float length = (!lock ? 5 : 8) * size / script.zoom;
 		
@@ -525,16 +531,18 @@ class PropTool : Tool
 					if(selected_props_count > 0)
 					{
 						custom_anchor_layer = selection_layer;
+						custom_anchor_sub_layer = selection_sub_layer;
 					}
 					else if(@hovered_prop != null)
 					{
-						custom_anchor_layer = hovered_prop.prop.layer();
+						custom_anchor_layer = hovered_prop.layer;
+						custom_anchor_sub_layer = hovered_prop.sub_layer;
 					}
 				}
 				
 				if(!script.ctrl.down)
 				{
-					script.mouse_layer(custom_anchor_layer, custom_anchor_x, custom_anchor_y);
+					script.mouse_layer(custom_anchor_layer, custom_anchor_sub_layer, custom_anchor_x, custom_anchor_y);
 				}
 				else
 				{
@@ -591,14 +599,16 @@ class PropTool : Tool
 		
 		if(selected_props_count == 0)
 		{
-			selection_layer = pressed_prop.prop.layer();
+			selection_layer = pressed_prop.layer;
+			selection_sub_layer = pressed_prop.sub_layer;
 		}
 		
-		action_layer = pressed_prop.prop.layer();
+		action_layer = pressed_prop.layer;
+		action_sub_layer = pressed_prop.sub_layer;
 		
 		drag_start_x = mouse.x;
 		drag_start_y = mouse.y;
-		script.transform(drag_start_x, drag_start_y, 22, action_layer, drag_start_x, drag_start_y);
+		script.transform(drag_start_x, drag_start_y, 22, 22, action_layer, action_sub_layer, drag_start_x, drag_start_y);
 		selection_drag_start_x = selection_x;
 		selection_drag_start_y = selection_y;
 		
@@ -625,7 +635,8 @@ class PropTool : Tool
 		
 		if(selected_props_count == 1 && temporary_selection)
 		{
-			selection_layer = hovered_prop.prop.layer();
+			selection_layer = hovered_prop.layer;
+			selection_sub_layer = hovered_prop.sub_layer;
 			selection_angle = hovered_prop.prop.rotation() * DEG2RAD;
 		}
 		
@@ -633,7 +644,6 @@ class PropTool : Tool
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
-		const int anchor_layer = has_custom_anchor ? custom_anchor_layer : selection_layer;
 		
 		for(int i = 0; i < selected_props_count; i++)
 		{
@@ -641,7 +651,7 @@ class PropTool : Tool
 		}
 		
 		float x, y;
-		script.transform(mouse.x, mouse.y, 22, selection_layer, x, y);
+		script.mouse_layer(selection_layer, selection_sub_layer, x, y);
 		drag_offset_angle = atan2(anchor_y - y, anchor_x - x) - selection_angle;
 		
 		if(has_custom_anchor)
@@ -671,7 +681,7 @@ class PropTool : Tool
 		drag_selection_y2 = selection_y2;
 		
 		float x, y;
-		script.transform(mouse.x, mouse.y, 22, selection_layer, x, y);
+		script.mouse_layer(selection_layer, selection_sub_layer, x, y);
 		drag_scale_start_distance = distance(x, y, anchor_x, anchor_y);
 		drag_start_x = x;
 		drag_start_y = y;
@@ -721,12 +731,12 @@ class PropTool : Tool
 		
 		if(@bounding_box != null)
 		{
-			script.show_layer_sublayer_overlay(bounding_box, prop_data.prop.layer(), prop_data.prop.sub_layer());
+			script.show_layer_sub_layer_overlay(bounding_box, prop_data.prop.layer(), prop_data.prop.sub_layer());
 		}
 		else if(@prop_data != null)
 		{
 			selection_bounding_box.layer = selection_layer;
-			script.show_layer_sublayer_overlay(
+			script.show_layer_sub_layer_overlay(
 				@selection_bounding_box,
 				prop_data.prop.layer(), prop_data.prop.sub_layer());
 		}
@@ -763,7 +773,7 @@ class PropTool : Tool
 		
 		float start_x, start_y;
 		float mouse_x, mouse_y;
-		script.transform(mouse.x, mouse.y, 22, action_layer, mouse_x, mouse_y);
+		script.mouse_layer(action_layer, action_sub_layer, mouse_x, mouse_y);
 		script.snap(drag_start_x, drag_start_y, start_x, start_y, custom_grid);
 		script.snap(mouse_x, mouse_y, mouse_x, mouse_y, custom_grid);
 		const float drag_delta_x = mouse_x - start_x;
@@ -813,10 +823,9 @@ class PropTool : Tool
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
-		const int anchor_layer = has_custom_anchor ? custom_anchor_layer : selection_layer;
 		
 		float x, y;
-		script.transform(mouse.x, mouse.y, 22, selection_layer, x, y);
+		script.mouse_layer(selection_layer, selection_sub_layer, x, y);
 		const float angle = atan2(anchor_y - y, anchor_x - x);
 		selection_angle = angle - drag_offset_angle;
 		script.snap(selection_angle, selection_angle);
@@ -870,7 +879,7 @@ class PropTool : Tool
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
 		
 		float x, y;
-		script.transform(mouse.x, mouse.y, 22, selection_layer, x, y);
+		script.mouse_layer(selection_layer, selection_sub_layer, x, y);
 		const float new_drag_distance = distance(x, y, anchor_x, anchor_y);
 		const float length = magnitude(drag_start_x - anchor_x, drag_start_y - anchor_y);
 		project(
@@ -1089,7 +1098,7 @@ class PropTool : Tool
 	private void show_custom_anchor_info()
 	{
 		float x, y;
-		script.transform_size(5 / script.zoom, 5 / script.zoom, 22, custom_anchor_layer, x, y);
+		script.transform_size(5 / script.zoom, 5 / script.zoom, 22, 22, custom_anchor_layer, custom_anchor_sub_layer, x, y);
 		
 		selection_bounding_box.layer = custom_anchor_layer;
 		selection_bounding_box.x1 = custom_anchor_x - x;
@@ -1104,20 +1113,7 @@ class PropTool : Tool
 	
 	private void adjust_custom_anchor_layer(int dir)
 	{
-		dir = sign(dir * 2 + 1);
-		
-		if(custom_anchor_layer >= 12)
-		{
-			custom_anchor_layer = dir == 1 ? 0 : 11;
-		}
-		else if(custom_anchor_layer == 0 && dir == -1 || custom_anchor_layer == 11 && dir == 1)
-		{
-			custom_anchor_layer = 19;
-		}
-		else
-		{
-			custom_anchor_layer = mod(custom_anchor_layer + mouse.scroll, 20);
-		}
+		custom_anchor_layer = mod(custom_anchor_layer + mouse.scroll, 20);
 	}
 	
 	private void shift_props(const float dx, const float dy)
@@ -1261,6 +1257,7 @@ class PropTool : Tool
 			}
 			
 			selection_layer = 0;
+			selection_sub_layer = 0;
 			selection_angle = 0;
 			clear_custom_anchor();
 		}
@@ -1287,9 +1284,14 @@ class PropTool : Tool
 			@selected_props[selected_props_count++] = prop_data;
 			prop_data.selected = true;
 			
-			if(int(prop_data.prop.layer()) > selection_layer)
+			if(prop_data.layer >= selection_layer)
 			{
-				selection_layer = prop_data.prop.layer();
+				selection_layer = prop_data.layer;
+				
+				if(prop_data.sub_layer > selection_sub_layer)
+				{
+					selection_sub_layer = prop_data.sub_layer;
+				}
 			}
 		}
 		else
@@ -1394,14 +1396,20 @@ class PropTool : Tool
 	private void update_selection_layer()
 	{
 		selection_layer = 0;
+		selection_sub_layer = 0;
 		
 		for(int i = 0; i < selected_props_count; i++)
 		{
-			prop@ p = selected_props[i].prop;
+			PropData@ p = selected_props[i];
 			
-			if(int(p.layer()) > selection_layer)
+			if(p.layer >= selection_layer)
 			{
-				selection_layer = p.layer();
+				selection_layer = p.layer;
+				
+				if(p.sub_layer > selection_sub_layer)
+				{
+					selection_sub_layer = p.sub_layer;
+				}
 			}
 		}
 	}
@@ -1426,12 +1434,13 @@ class PropTool : Tool
 		
 		if(has_custom_anchor)
 		{
-			script.transform(ox, oy, custom_anchor_layer, selection_layer, ox, oy);
+			script.transform(ox, oy, custom_anchor_layer, custom_anchor_sub_layer, selection_layer, selection_sub_layer, ox, oy);
 		}
 		
 		props_clipboard.x = ox;
 		props_clipboard.y = oy;
 		props_clipboard.layer = selection_layer;
+		props_clipboard.sub_layer = selection_sub_layer;
 		
 		for(int i = 0; i < selected_props_count; i++)
 		{
@@ -1455,8 +1464,8 @@ class PropTool : Tool
 			float x2 = prop_data.x + prop_data.local_x2 - ox;
 			float y2 = prop_data.y + prop_data.local_y2 - oy;
 			
-			script.transform(x1, y1, copy_data.layer, selection_layer, x1, y1);
-			script.transform(x2, y2, copy_data.layer, selection_layer, x2, y2);
+			script.transform(x1, y1, copy_data.layer, copy_data.sub_layer, selection_layer, selection_sub_layer, x1, y1);
+			script.transform(x2, y2, copy_data.layer, copy_data.sub_layer, selection_layer, selection_sub_layer, x2, y2);
 			
 			if(i == 0)
 			{
@@ -1502,7 +1511,7 @@ class PropTool : Tool
 		else
 		{
 			float mx, my;
-			script.transform(mouse.x, mouse.y, 22, props_clipboard.layer, mx, my);
+			script.mouse_layer(props_clipboard.layer, props_clipboard.sub_layer, mx, my);
 			x = mx - props_clipboard.x1 - (props_clipboard.x2 - props_clipboard.x1) * 0.5;
 			y = my - props_clipboard.y1 - (props_clipboard.y2 - props_clipboard.y1) * 0.5;
 			
@@ -1774,7 +1783,7 @@ class PropTool : Tool
 			const float prop_x = p.x();
 			const float prop_y = p.y();
 			const float rotation = p.rotation() * DEG2RAD * (p.scale_x() >= 0 ? 1.0 : -1.0) * (p.scale_y() >= 0 ? 1.0 : -1.0);
-			const float layer_scale = layer <= 5 ? script.g.layer_scale(layer) : 1.0;
+			const float layer_scale = layer <= 5 ? script.layer_scale(layer, sub_layer) : 1.0;
 			const float backdrop_scale = layer <= 5 ? 2.0 : 1.0;
 			const float scale_x = p.scale_x() / layer_scale * backdrop_scale;
 			const float scale_y = p.scale_y() / layer_scale * backdrop_scale;
@@ -1782,8 +1791,8 @@ class PropTool : Tool
 			// Calculate mouse "local" position relative to prop rotation and scale
 			
 			float local_x, local_y;
-			const float layer_mx = script.g.mouse_x_world(0, layer);
-			const float layer_my = script.g.mouse_y_world(0, layer);
+			float layer_mx, layer_my;
+			script.mouse_layer(layer, sub_layer, layer_mx, layer_my);
 			
 			rotate(
 				(layer_mx - prop_x) / scale_x,
@@ -1794,7 +1803,7 @@ class PropTool : Tool
 			
 			PropData@ prop_data = is_prop_highlighted(p);
 			
-			if((@prop_data == null || !prop_data.selected) && !pick_through_tiles && hittest_tiles(p.layer(), sub_layer))
+			if((@prop_data == null || !prop_data.selected) && !pick_through_tiles && hittest_tiles(layer, sub_layer))
 				continue;
 			
 			// Check if the mouse is inside to the prop
@@ -1848,8 +1857,8 @@ class PropTool : Tool
 			if(!script.editor.get_layer_visible(layer))
 				continue;
 			
-			const float mx = script.g.mouse_x_world(0, layer);
-			const float my = script.g.mouse_y_world(0, layer);
+			float mx, my;
+			script.mouse_layer(layer, 10, mx, my);
 			const int tx = floor_int(mx / 48);
 			const int ty = floor_int(my / 48);
 			tileinfo@ tile = script.g.get_tile(tx, ty, layer);
@@ -2236,15 +2245,15 @@ class PropTool : Tool
 		float &out x, float &out y, float &out x1, float &out y1, float &out x2, float &out y2,
 		const bool allow_flipped=false)
 	{
-		script.transform(selection_x, selection_y, selection_layer, 22, x, y);
+		script.transform(selection_x, selection_y, selection_layer, selection_sub_layer, 22, 22, x, y);
 		script.transform_size(
 			allow_flipped ? selection_x1 : min(selection_x1, selection_x2),
 			allow_flipped ? selection_y1 : min(selection_y1, selection_y2),
-			selection_layer, 22, x1, y1);
+			selection_layer, selection_sub_layer, 22, 22, x1, y1);
 		script.transform_size(
 			allow_flipped ? selection_x2 : max(selection_x1, selection_x2),
 			allow_flipped ? selection_y2 : max(selection_y1, selection_y2),
-			selection_layer, 22, x2, y2);
+			selection_layer, selection_sub_layer, 22, 22, x2, y2);
 	}
 	
 	void show_prop_message(const string &in msg, const bool mouse = false, const float display_time=0.75)

@@ -183,9 +183,14 @@ class InfoOverlay
 			return;
 		}
 		
+		int layer = 22;
+		int sub_layer = 22;
+		
 		if(@target != null)
 		{
 			target.get_bounding_box_world(this.x1, this.y1, this.x2, this.y2);
+			layer = 22;
+			sub_layer = 22;
 		}
 		else if(@mouse != null)
 		{
@@ -193,11 +198,13 @@ class InfoOverlay
 			this.y1 = mouse.y;
 			this.x2 = mouse.x;
 			this.y2 = mouse.y;
+			layer = mouse.layer;
+			sub_layer = mouse.sub_layer;
 		}
 		
 		float x1, y1, x2, y2;
-		script.world_to_hud(this.x1, this.y1, x1, y1);
-		script.world_to_hud(this.x2, this.y2, x2, y2);
+		script.world_to_hud(layer, sub_layer, this.x1, this.y1, x1, y1);
+		script.world_to_hud(layer, sub_layer, this.x2, this.y2, x2, y2);
 		
 		dummy_overlay.x = x1;
 		dummy_overlay.y = y1;

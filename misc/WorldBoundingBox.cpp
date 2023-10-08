@@ -7,16 +7,17 @@ class WorldBoundingBox : IWorldBoundingBox
 	
 	float x1, y1;
 	float x2, y2;
-	int layer = 19;
+	int layer = 22;
+	int sub_layer = 22;
 	
 	private int count;
 	
 	void get_bounding_box_world(float &out x1, float &out y1, float &out x2, float &out y2) override
 	{
-		if(layer != -1 && layer < 12)
+		if(layer != -1)
 		{
-			script.transform(this.x1, this.y1, layer, 19, x1, y1);
-			script.transform(this.x2, this.y2, layer, 19, x2, y2);
+			script.transform(this.x1, this.y1, layer, sub_layer, 22, 22, x1, y1);
+			script.transform(this.x2, this.y2, layer, sub_layer, 22, 22, x2, y2);
 			return;
 		}
 		
@@ -29,14 +30,19 @@ class WorldBoundingBox : IWorldBoundingBox
 	void reset()
 	{
 		layer = -1;
+		sub_layer = 0;
 		count = 0;
 	}
 	
-	void add(const float x1, const float y1, const float x2, const float y2, const int layer=19)
+	void add(const float x1, const float y1, const float x2, const float y2, const int layer=22, const int sub_layer=22)
 	{
-		if(layer > this.layer)
+		if(layer >= this.layer)
 		{
 			this.layer = layer;
+			if(sub_layer > this.sub_layer)
+			{
+				this.sub_layer = sub_layer;
+			}
 		}
 		
 		if(count++ == 0)

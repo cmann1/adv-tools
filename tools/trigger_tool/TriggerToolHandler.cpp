@@ -446,8 +446,8 @@ class TriggerToolHandler
 		
 		float x1, y1, x2, y2;
 		const float size = select_list.length == 1 ? 10 : 0;
-		script.world_to_hud(x - size, y - size, x1, y1);
-		script.world_to_hud(x + size, y + size, x2, y2);
+		script.world_to_hud(22, 5, x - size, y - size, x1, y1);
+		script.world_to_hud(22, 5, x + size, y + size, x2, y2);
 		
 		if(select_list.length == 1)
 		{
@@ -662,7 +662,7 @@ class TriggerToolHandler
 			return;
 		
 		float x1, y1, x2, y2;
-		script.world_to_hud(x, y, x1, y1, false);
+		script.world_to_hud(22, 5, x, y, x1, y1, false);
 		
 		if(x1 < element.x1 || x1 > element.x2 || y1 < element.y1 || y1 > element.y2)
 		{

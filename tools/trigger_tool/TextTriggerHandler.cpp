@@ -116,8 +116,8 @@ class TextTriggerHandler : TriggerToolHandler
 		if(state == TriggerHandlerState::Rotating || state == TriggerHandlerState::Scaling)
 		{
 			float x1, y1, x2, y2;
-			script.world_to_hud(selected_z_trigger.trigger.x(), selected_z_trigger.trigger.y(), x1, y1, false);
-			script.world_to_hud(script.mouse.x, script.mouse.y, x2, y2, false);
+			script.world_to_hud(22, 5, selected_z_trigger.trigger, x1, y1, false);
+			script.world_to_hud(script.mouse, x2, y2, false);
 			script.ui.style.draw_line(x1, y1, x2, y2, 4, (state == TriggerHandlerState::Rotating ? 0x9c3edf : 0xd85d45) | 0xbb000000);
 		}
 	}

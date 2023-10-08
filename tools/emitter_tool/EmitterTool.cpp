@@ -38,6 +38,7 @@ class EmitterTool : Tool
 	private bool queued_create;
 	private int select_rect_pending;
 	private int action_layer;
+	private int action_sub_layer;
 	private float drag_start_x, drag_start_y;
 	private float drag_anchor_x, drag_anchor_y;
 	private float drag_offset_angle;
@@ -46,12 +47,11 @@ class EmitterTool : Tool
 	private DragHandleType dragged_handle = DragHandleType::None;
 	
 	private WorldBoundingBox selection_bounding_box;
-	private int min_layer;
 	
 	private EmitterToolWindow properties_window;
 	int emitter_id = EmitterId::DustGround;
 	int layer = 19;
-	int sublayer = 12;
+	int sub_layer = 12;
 	float rotation = 0;
 	
 	LineData _line;
@@ -96,18 +96,6 @@ class EmitterTool : Tool
 		properties_window.show(script, this);
 		
 		script.hide_gui_panels(true);
-		
-		float min_layer_scale = 99999999.0;
-		for(uint i = 0; i < 21; i++)
-		{
-			const float layer_scale = script.g.layer_scale(i);
-			
-			if(layer_scale < min_layer_scale)
-			{
-				min_layer = i;
-				min_layer_scale = layer_scale;
-			}
-		}
 	}
 	
 	protected void on_deselect_impl()
@@ -280,7 +268,7 @@ class EmitterTool : Tool
 		{
 			const bool drag_centre = script.alt.down;
 			float sx, sy;
-			script.transform(drag_start_x, drag_start_y, layer, 22, sx, sy);
+			script.transform(drag_start_x, drag_start_y, layer, sub_layer, 22, 22, sx, sy);
 			float lx, ly;
 			rotate(mouse.x - sx, mouse.y - sy, -rotation * DEG2RAD, lx, ly);
 			
@@ -418,7 +406,7 @@ class EmitterTool : Tool
 			shift_emitters(0, script.ctrl.down ? 20 : script.shift.down ? 10 : 1);
 		}
 		
-		// Adjust layer/sublayer
+		// Adjust layer/sub_layer
 		
 		if(mouse.scroll != 0 && (script.ctrl.down || script.alt.down))
 		{
@@ -508,10 +496,11 @@ class EmitterTool : Tool
 	private void idle_start_drag()
 	{
 		action_layer = pressed_emitter.layer;
+		action_sub_layer = pressed_emitter.sub_layer;
 		
 		drag_start_x = mouse.x;
 		drag_start_y = mouse.y;
-		script.transform(drag_start_x, drag_start_y, 22, action_layer, drag_start_x, drag_start_y);
+		script.transform(drag_start_x, drag_start_y, 22, 22, action_layer, action_sub_layer, drag_start_x, drag_start_y);
 		
 		for(int i = 0; i < selected_emitters_count; i++)
 		{
@@ -540,7 +529,8 @@ class EmitterTool : Tool
 				
 				selection_bounding_box.add(
 					data.x - data.width * 0.5, data.y - data.height * 0.5,
-					data.x + data.width * 0.5, data.y + data.height * 0.5, data.layer);
+					data.x + data.width * 0.5, data.y + data.height * 0.5,
+					data.layer, data.sub_layer);
 			}
 		}
 		else if(@hovered_emitter != null)
@@ -552,11 +542,11 @@ class EmitterTool : Tool
 		
 		if(@bounding_box != null)
 		{
-			script.show_layer_sublayer_overlay(bounding_box, data.layer, data.sublayer);
+			script.show_layer_sub_layer_overlay(bounding_box, data.layer, data.sub_layer);
 		}
 		else if(@data != null)
 		{
-			script.show_layer_sublayer_overlay(@selection_bounding_box, data.layer, data.sublayer);
+			script.show_layer_sub_layer_overlay(@selection_bounding_box, data.layer, data.sub_layer);
 		}
 		
 		properties_window.update_layer();
@@ -571,9 +561,9 @@ class EmitterTool : Tool
 		
 		float local_x, local_y;
 		script.world_to_local(
-			mouse.x, mouse.y, 22,
+			mouse,
 			drag_anchor_x, drag_anchor_y, primary_selected.rotation,
-			primary_selected.layer,
+			primary_selected.layer, primary_selected.sub_layer,
 			drag_start_x, drag_start_y);
 		
 		const float multiplier = drag_centre ? 0.5 : 1;
@@ -596,7 +586,7 @@ class EmitterTool : Tool
 		EmitterData@ data = @primary_selected;
 		
 		float mx, my;
-		script.transform(mouse.x, mouse.y, 22, data.layer, mx, my);
+		script.mouse_layer(data.layer, data.sub_layer, mx, my);
 		drag_offset_angle = atan2(my - data.y, mx - data.x);
 		drag_base_rotation = data.rotation * DEG2RAD;
 		
@@ -610,7 +600,7 @@ class EmitterTool : Tool
 	{
 		select_none();
 		
-		script.transform(mouse.x, mouse.y, 22, layer, drag_start_x, drag_start_y);
+		script.mouse_layer(layer, sub_layer, drag_start_x, drag_start_y);
 		
 		state = EmitterToolState::Creating;
 		script.ui.mouse_enabled = false;
@@ -634,7 +624,7 @@ class EmitterTool : Tool
 		
 		float start_x, start_y;
 		float mouse_x, mouse_y;
-		script.transform(mouse.x, mouse.y, 22, action_layer, mouse_x, mouse_y);
+		script.mouse_layer(action_layer, action_sub_layer, mouse_x, mouse_y);
 		script.snap(drag_start_x, drag_start_y, start_x, start_y);
 		script.snap(mouse_x, mouse_y, mouse_x, mouse_y);
 		const float drag_delta_x = mouse_x - start_x;
@@ -667,9 +657,9 @@ class EmitterTool : Tool
 		
 		float local_x, local_y;
 		script.world_to_local(
-			mouse.x, mouse.y, 22,
+			mouse,
 			drag_anchor_x, drag_anchor_y, data.rotation,
-			data.layer,
+			data.layer, data.sub_layer,
 			local_x, local_y);
 		
 		local_x -= drag_start_x;
@@ -749,7 +739,7 @@ class EmitterTool : Tool
 		EmitterData@ data = @primary_selected;
 		
 		float mx, my;
-		script.transform(mouse.x, mouse.y, 22, data.layer, mx, my);
+		script.mouse_layer(data.layer, data.sub_layer, mx, my);
 		float angle = drag_base_rotation + atan2(my - data.y, mx - data.x) - drag_offset_angle;
 		script.snap(angle, angle);
 		
@@ -778,8 +768,8 @@ class EmitterTool : Tool
 		float x2 = max(drag_start_x, mouse.x);
 		// Expand rect so it finds it will also find emitters on layers with scale < 1
 		float ex1, ey1, ex2, ey2;
-		script.transform(x1, y1, 22, min_layer, ex1, ey1);
-		script.transform(x2, y2, 22, min_layer, ex2, ey2);
+		script.transform(x1, y1, 22, 22, script.min_layer, script.min_sub_layer, ex1, ey1);
+		script.transform(x2, y2, 22, 22, script.min_layer, script.min_sub_layer, ex2, ey2);
 		// get_entity_collision ignores emitter rotation, so long thin emitters rotated at 90deg
 		// might get skipped. Expand the bounding box to help with this somewhat
 		const float expand = 1000;
@@ -865,7 +855,7 @@ class EmitterTool : Tool
 		
 		const bool drag_centre = script.alt.down;
 		float mx, my;
-		script.transform(mouse.x, mouse.y, 22, layer, mx, my);
+		script.mouse_layer(layer, sub_layer, mx, my);
 		float lx, ly;
 		rotate(mx - drag_start_x, my - drag_start_y, -rotation * DEG2RAD, lx, ly);
 		
@@ -880,7 +870,7 @@ class EmitterTool : Tool
 		
 		entity@ emitter = create_emitter(emitter_id,
 			ox, oy,
-			ceil_int(abs(lx)), ceil_int(abs(ly)), layer, sublayer,
+			ceil_int(abs(lx)), ceil_int(abs(ly)), layer, sub_layer,
 			round_int(rotation));
 		script.g.add_entity(emitter);
 		

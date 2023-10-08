@@ -151,11 +151,18 @@ class AdvToolScript
 	float view_w, view_h;
 	float screen_w, screen_h;
 	
-	array<float> layer_scales(23);
+	array<array<float>> layer_scales(23);
 	/// Maps a layer index to it's order
 	array<int> layer_positions(23);
 	/// Maps an order to a layer index
 	array<int> layer_indices(23);
+	
+	int min_layer = 6;
+	int min_sub_layer = 0;
+	float min_layer_scale = 1;
+	int min_fg_layer = 6;
+	int min_fg_sub_layer = 0;
+	float min_fg_layer_scale = 1;
 	
 	Toolbar@ main_toolbar { get { return @toolbar; } }
 	
@@ -169,8 +176,13 @@ class AdvToolScript
 		@cam = get_active_camera();
 		
 		@ui = UI(true);
-		@mouse = Mouse(false, 22);
+		@mouse = Mouse(false, 22, 22);
 		mouse.use_input(input);
+		
+		for(int i = 0; i <= 22; i++)
+		{
+			layer_scales[i].resize(25);
+		}
 		
 		blocked_key.init(this);
 		
@@ -494,7 +506,7 @@ class AdvToolScript
 		view_x = cam.x();
 		view_y = cam.y();
 		
-		cam.get_layer_draw_rect(0, 19, view_x1, view_y1, view_w, view_h);
+		cam.get_layer_draw_rect(0, 22, 22, view_x1, view_y1, view_w, view_h);
 		view_x2 = view_x1 + view_w;
 		view_y2 = view_y1 + view_h;
 		
@@ -805,16 +817,33 @@ class AdvToolScript
 		}
 	}
 	
-	void world_to_hud(const float x, const float y, float &out hud_x, float &out hud_y, const bool ui_coords=true)
+	void world_to_hud(
+		const int layer, const int sub_layer,
+		const float x, const float y,
+		float &out hud_x, float &out hud_y, const bool ui_coords=true)
 	{
-		hud_x = (x - view_x1) / view_w * screen_w;
-		hud_y = (y - view_y1) / view_h * screen_h;
+		float wx, wy;
+		transform(x, y, layer, sub_layer, 19, 0, wx, wy);
+		hud_x = (wx - view_x1) / view_w * screen_w;
+		hud_y = (wy - view_y1) / view_h * screen_h;
 		
 		if(!ui_coords)
 		{
 			hud_x -= screen_w * 0.5;
 			hud_y -= screen_h * 0.5;
 		}
+	}
+	
+	void world_to_hud(
+		const int layer, const int sub_layer, entity@ e,
+		float &out hud_x, float &out hud_y, const bool ui_coords=true)
+	{
+		world_to_hud(layer, sub_layer, e.x(), e.y(), hud_x, hud_y, ui_coords);
+	}
+	
+	void world_to_hud(Mouse@ mouse, float &out hud_x, float &out hud_y, const bool ui_coords=true)
+	{
+		world_to_hud(mouse.layer, mouse.sub_layer, mouse.x, mouse.y, hud_x, hud_y, ui_coords);
 	}
 	
 	int layer_position(const int layer_index)
@@ -827,14 +856,14 @@ class AdvToolScript
 		return layer_indices[layer_position];
 	}
 	
-	float layer_scale(const int layer_index)
+	float layer_scale(const uint layer, const uint sub_layer)
 	{
-		return layer_scales[layer_index];
+		return layer_scales[layer][sub_layer];
 	}
 	
-	float layer_scale(const int from_layer, const int to_layer)
+	float layer_scale(const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer)
 	{
-		return layer_scales[from_layer] / layer_scales[to_layer];
+		return layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer];
 	}
 	
 	void select_layer(const int layer)
@@ -927,28 +956,62 @@ class AdvToolScript
 		return updated != 0;
 	}
 	
-	void transform(const float x, const float y, const int from_layer, const int to_layer,
+	void transform(
+		const float x, const float y,
+		const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer,
 		float &out out_x, float &out out_y)
 	{
-		transform_layer_position(x, y, from_layer, to_layer, out_x, out_y);
+		const float scale = layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer];
+		
+		const float dx = (x - view_x) * scale;
+		const float dy = (y - view_y) * scale;
+		
+		out_x = view_x + dx;
+		out_y = view_y + dy;
 	}
 	
-	float transform_size(const float size, const int from_layer, const int to_layer)
-	{
-		return size * (layer_scales[from_layer] / layer_scales[to_layer]);
-	}
-	
-	void transform_size(const float x, const float y, const int from_layer, const int to_layer,
+	void transform(
+		const float x, const float y,
+		const int from_layer, const int from_sub_layer, Mouse@ mouse,
 		float &out out_x, float &out out_y)
 	{
-		const float scale = layer_scales[from_layer] / layer_scales[to_layer];
+		transform(x, y, from_layer, from_sub_layer, mouse.layer, mouse.sub_layer, out_x, out_y);
+	}
+	
+	float transform_size(
+		const float size,
+		const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer)
+	{
+		return size * (layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer]);
+	}
+	
+	void transform_size(
+		const float x, const float y,
+		const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer,
+		float &out out_x, float &out out_y)
+	{
+		const float scale = layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer];
 		out_x = x * scale;
 		out_y = y * scale;
 	}
 	
-	void mouse_layer(const int to_layer, float &out out_x, float &out out_y)
+	float transform_size(const float size, Mouse@ mouse, const int to_layer, const int to_sub_layer)
 	{
-		transform_layer_position(mouse.x, mouse.y, mouse.layer, to_layer, out_x, out_y);
+		return size * (layer_scales[mouse.layer][mouse.sub_layer] / layer_scales[to_layer][to_sub_layer]);
+	}
+	
+	void transform_size(
+		const float x, const float y, Mouse@ mouse, const int to_layer, const int to_sub_layer,
+		float &out out_x, float &out out_y)
+	{
+		const float scale = layer_scales[mouse.layer][mouse.sub_layer] / layer_scales[to_layer][to_sub_layer];
+		out_x = x * scale;
+		out_y = y * scale;
+	}
+	
+	void mouse_layer(const int to_layer, const int to_sub_layer, float &out out_x, float &out out_y)
+	{
+		transform(mouse.x, mouse.y, mouse.layer, mouse.sub_layer, to_layer, to_sub_layer, out_x, out_y);
 	}
 	
 	entity@ pick_trigger()
@@ -980,8 +1043,8 @@ class AdvToolScript
 	int query_onscreen_entities(const ColType type, const bool expand_for_parallax=false)
 	{
 		float x1, y1, x2, y2;
-		transform(view_x1, view_y1, 22, 6, x1, y1);
-		transform(view_x2, view_y2, 22, 6, x2, y2);
+		transform(view_x1, view_y1, 22, 22, min_fg_layer, min_fg_sub_layer, x1, y1);
+		transform(view_x2, view_y2, 22, 22, min_fg_layer, min_fg_sub_layer, x2, y2);
 		
 		if(!expand_for_parallax)
 		{
@@ -992,8 +1055,8 @@ class AdvToolScript
 		}
 		else
 		{
-			transform(view_x1, view_y1, 22, 6, x1, y1);
-			transform(view_x2, view_y2, 22, 6, x2, y2);
+			transform(view_x1, view_y1, 22, 22, min_fg_layer, min_fg_sub_layer, x1, y1);
+			transform(view_x2, view_y2, 22, 22, min_fg_layer, min_fg_sub_layer, x2, y2);
 		}
 		
 		const float padding = 100;
@@ -1128,9 +1191,9 @@ class AdvToolScript
 			inner_colour, outer_colour, world);
 	}
 	
-	bool is_same_parallax(const int layer1, const int layer2)
+	bool is_same_layer_scale(const int layer1, const int sub_layer1, const int layer2, const int sub_layer2)
 	{
-		return layer1 >= 12 && layer2 >= 12 || layer1 == layer2;
+		return layer_scales[layer1][sub_layer1] != layer_scales[layer2][sub_layer2];
 	}
 	
 	/**
@@ -1142,15 +1205,15 @@ class AdvToolScript
 		info_overlay.position = position;
 	}
 	
-	void show_layer_sublayer_overlay(const float x1, const float y1, const float x2, const float y2,
-		const int layer, const int sublayer)
+	void show_layer_sub_layer_overlay(const float x1, const float y1, const float x2, const float y2,
+		const int layer, const int sub_layer)
 	{
-		info_overlay.show(x1, y1, x2, y2, layer + '.' + sublayer, 0.75);
+		info_overlay.show(x1, y1, x2, y2, layer + '.' + sub_layer, 0.75);
 	}
 	
-	void show_layer_sublayer_overlay(IWorldBoundingBox@ target, const int layer, const int sublayer)
+	void show_layer_sub_layer_overlay(IWorldBoundingBox@ target, const int layer, const int sub_layer)
 	{
-		info_overlay.show(target, layer + '.' + sublayer, 0.75);
+		info_overlay.show(target, layer + '.' + sub_layer, 0.75);
 	}
 	
 	void show_info_popup(
@@ -1175,24 +1238,56 @@ class AdvToolScript
 	}
 	
 	void world_to_local(
-		const float x, const float y, const int layer,
+		const float x, const float y, const int layer, const int sub_layer,
 		const float to_x, const float to_y, const float to_rotation,
-		const int to_layer,
+		const int to_layer, const int to_sub_layer,
 		float &out local_x, float &out local_y)
 	{
-		transform(x, y, layer, to_layer, local_x, local_y);
+		transform(x, y, layer, sub_layer, to_layer, to_sub_layer, local_x, local_y);
 		local_x -= to_x;
 		local_y -= to_y;
 		rotate(local_x, local_y, -to_rotation * DEG2RAD, local_x, local_y);
 	}
 	
+	void world_to_local(
+		Mouse@ mouse,
+		const float to_x, const float to_y, const float to_rotation,
+		const int to_layer, const int to_sub_layer,
+		float &out local_x, float &out local_y)
+	{
+		world_to_local(mouse.x, mouse.y, mouse.layer, mouse.sub_layer, to_x, to_y, to_rotation, to_layer, to_sub_layer, local_x, local_y);
+	}
+	
 	void store_layer_values()
 	{
-		for(uint i = 0; i < 23; i++)
+		min_layer_scale = INFINITY;
+		min_fg_layer_scale = INFINITY;
+		
+		for(uint i = 0; i <= 22; i++)
 		{
 			layer_positions[i] = g.get_layer_position(i);
 			layer_indices[layer_positions[i]] = i;
-			layer_scales[i] = g.layer_scale(i);
+			
+			array<float>@ sub_layer_scales = layer_scales[i];
+			for(uint j = 0; j <= 24; j++)
+			{
+				const float scale = g.sub_layer_scale(i, j);
+				sub_layer_scales[j] = scale;
+				
+				if(scale < min_layer_scale)
+				{
+					if(i >= 6)
+					{
+						min_fg_layer_scale = scale;
+						min_fg_layer = i;
+						min_fg_sub_layer = j;
+					}
+					
+					min_layer_scale = scale;
+					min_layer = i;
+					min_sub_layer = j;
+				}
+			}
 		}
 	}
 	
@@ -1443,20 +1538,6 @@ class AdvToolScript
 		{
 			ui.hide_tooltip(shortcut_keys_enabled_popup);
 		}
-	}
-	
-	private void transform_layer_position(
-		const float x, const float y,
-		const int from_layer, const int to_layer,
-		float &out out_x, float &out out_y)
-	{
-		const float scale = layer_scales[from_layer] / layer_scales[to_layer];
-		
-		const float dx = (x - view_x) * scale;
-		const float dy = (y - view_y) * scale;
-		
-		out_x = view_x + dx;
-		out_y = view_y + dy;
 	}
 	
 	void persist_state()

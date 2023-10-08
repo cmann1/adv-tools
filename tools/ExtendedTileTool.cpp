@@ -44,7 +44,7 @@ class ExtendedTileTool : Tool
 					continue;
 				
 				float layer_x, layer_y;
-				script.mouse_layer(layer, layer_x, layer_y);
+				script.mouse_layer(layer, 10, layer_x, layer_y);
 				const int tile_x = floor_int(layer_x / 48);
 				const int tile_y = floor_int(layer_y / 48);
 				tileinfo@ tile = script.g.get_tile(tile_x, tile_y, layer);

@@ -8,6 +8,7 @@ class PropsClipboardData
 	[text] float x2;
 	[text] float y2;
 	[text] int layer;
+	[text] int sub_layer;
 	[text] array<PropClipboardData> props;
 	
 }

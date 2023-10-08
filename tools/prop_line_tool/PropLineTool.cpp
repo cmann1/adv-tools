@@ -148,7 +148,7 @@ class PropLineTool : Tool
 					rotation + (rotation_mode == PropLineRotationMode::Auto ? rotation_offset : 0.0),
 					scale_x * scale, scale_y * scale,
 					state == PropToolState::Picking || script.space.down ? 0x77ffffff : 0xffffffff,
-					calc_bg_scale(script.layer));
+					calc_bg_scale(script.layer, script.sub_layer));
 			}
 		}
 		
@@ -168,13 +168,13 @@ class PropLineTool : Tool
 				spr.draw(
 					layer, sub_layer,
 					0, prop_palette, p.x, p.y, p.rotation, p.scale_x, p.scale_y,
-					0xffffffff, calc_bg_scale(layer));
+					0xffffffff, calc_bg_scale(layer, sub_layer));
 			}
 			
 			const uint clr = 0x77ffffff;
 			float x3, y3, x4, y4;
-			script.transform(x1, y1, script.layer, 22, x3, y3);
-			script.transform(x2, y2, script.layer, 22, x4, y4);
+			script.transform(x1, y1, script.layer, script.sub_layer, mouse, x3, y3);
+			script.transform(x2, y2, script.layer, script.sub_layer, mouse, x4, y4);
 			script.g.draw_line_world(22, 22, x3, y3, x4, y4, 2 / script.zoom, clr);
 		}
 	}
@@ -312,7 +312,7 @@ class PropLineTool : Tool
 			dragging_start_point = true;
 			mouse_moved = false;
 			float mx, my;
-			script.transform(mouse.x, mouse.y, 22, layer, mx, my);
+			script.mouse_layer(layer, sub_layer, mx, my);
 			drag_ox = (x2 - mx);
 			drag_oy = (y2 - my);
 			start_dx = x1 - x2;
@@ -388,7 +388,7 @@ class PropLineTool : Tool
 			if(drag_p1 || drag_p2 || drag_line)
 			{
 				float mx, my;
-				script.transform(mouse.x, mouse.y, 22, layer, mx, my);
+				script.mouse_layer(layer, sub_layer, mx, my);
 				drag_handle = drag_p1 ? DragHandleType::Start : drag_p2 ? DragHandleType::End : DragHandleType::Segment;
 				drag_ox = (drag_p1 || drag_line ? x1 : x2) - mx;
 				drag_oy = (drag_p1 || drag_line ? y1 : y2) - my;
@@ -456,7 +456,7 @@ class PropLineTool : Tool
 		const float x1_prev = x1;
 		const float y1_prev = y1;
 		
-		script.transform(mouse.x + ox, mouse.y + oy, 22, layer, x1, y1);
+		script.transform(mouse.x + ox, mouse.y + oy, 22, 22, layer, sub_layer, x1, y1);
 		
 		if(do_lock_angle)
 		{
@@ -483,7 +483,7 @@ class PropLineTool : Tool
 		const float x2_prev = x2;
 		const float y2_prev = y2;
 		
-		script.transform(mouse.x + ox, mouse.y + oy, 22, layer, x2, y2);
+		script.transform(mouse.x + ox, mouse.y + oy, 22, 22, layer, sub_layer, x2, y2);
 		
 		if(do_lock_angle)
 		{
@@ -620,7 +620,7 @@ class PropLineTool : Tool
 			PropLineProp@ data = @props[i];
 			float px, py;
 			spr.real_position(data.x, data.y, data.rotation, px, py, data.scale_x, data.scale_y,
-				calc_bg_scale(layer));
+				calc_bg_scale(layer, sub_layer));
 			prop@ p = create_prop(prop_set, prop_group, prop_index, px, py, layer, sub_layer, data.rotation);
 			p.palette(prop_palette);
 			p.scale_x(data.scale_x);
@@ -629,9 +629,9 @@ class PropLineTool : Tool
 		}
 	}
 	
-	private float calc_bg_scale(const int layer)
+	private float calc_bg_scale(const uint layer, const uint sub_layer)
 	{
-		return layer <= 5 ? 2.0 / script.g.layer_scale(layer) : 1.0;
+		return layer <= 5 ? 2.0 / script.layer_scale(layer, sub_layer) : 1.0;
 	}
 	
 	//
@@ -808,7 +808,7 @@ class PropLineTool : Tool
 		if(prop_set == -1)
 			return;
 		
-		const float bg_scale = calc_bg_scale(layer);
+		const float bg_scale = calc_bg_scale(layer, sub_layer);
 		
 		const float length = distance(x1, y1, x2, y2);
 		const float dx = x2 - x1;

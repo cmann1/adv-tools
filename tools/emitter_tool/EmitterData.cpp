@@ -14,10 +14,10 @@ class EmitterData : SelectableData
 	private varvalue@ width_var;
 	private varvalue@ height_var;
 	private varvalue@ rotation_var;
-	private varvalue@ sublayer_var;
+	private varvalue@ sub_layer_var;
 	
 	int emitter_id;
-	int layer, sublayer;
+	int layer, sub_layer;
 	float x, y;
 	float width, height;
 	float rotation;
@@ -42,11 +42,11 @@ class EmitterData : SelectableData
 		@width_var = vars.get_var('width');
 		@height_var = vars.get_var('height');
 		@rotation_var = vars.get_var('e_rotation');
-		@sublayer_var = vars.get_var('draw_depth_sub');
+		@sub_layer_var = vars.get_var('draw_depth_sub');
 		
 		emitter_id = emitter_id_var.get_int32();
 		layer = emitter.layer();
-		sublayer = sublayer_var.get_int32();
+		sub_layer = sub_layer_var.get_int32();
 		width = width_var.get_int32();
 		height = height_var.get_int32();
 		rotation = rotation_var.get_int32();
@@ -61,8 +61,8 @@ class EmitterData : SelectableData
 		x = emitter.x();
 		y = emitter.y();
 		
-		script.transform(x, y, layer, 22, aabb_x, aabb_y);
-		script.transform_size(width, height, layer, 22, world_size_x, world_size_y);
+		script.transform(x, y, layer, sub_layer, 22, 22, aabb_x, aabb_y);
+		script.transform_size(width, height, layer, sub_layer, 22, 22, world_size_x, world_size_y);
 		world_size_x *= 0.5;
 		world_size_y *= 0.5;
 		
@@ -214,8 +214,8 @@ class EmitterData : SelectableData
 		if(layer_position != other.layer_position)
 			return layer_position - other.layer_position;
 		
-		if(sublayer != other.sublayer)
-			return sublayer - other.sublayer;
+		if(sub_layer != other.sub_layer)
+			return sub_layer - other.sub_layer;
 		
 		return scene_index - other.scene_index;
 	}
@@ -345,12 +345,12 @@ class EmitterData : SelectableData
 	
 	// Layer/Sublayer
 	
-	void shift_layer(const int dir, const bool sublayer=false)
+	void shift_layer(const int dir, const bool sub_layer=false)
 	{
-		if(sublayer)
+		if(sub_layer)
 		{
-			this.sublayer = clamp(this.sublayer + dir, 0, 24);
-			sublayer_var.set_int32(this.sublayer);
+			this.sub_layer = clamp(this.sub_layer + dir, 0, 24);
+			sub_layer_var.set_int32(this.sub_layer);
 		}
 		else
 		{
@@ -452,12 +452,12 @@ class EmitterData : SelectableData
 		update();
 	}
 	
-	void update_layer(const int layer, const int sublayer)
+	void update_layer(const int layer, const int sub_layer)
 	{
 		this.layer = clamp(layer, 0, 20);
 		emitter.layer(this.layer);
-		this.sublayer = clamp(sublayer, 0, 24);
-		sublayer_var.set_int32(this.sublayer);
+		this.sub_layer = clamp(sub_layer, 0, 24);
+		sub_layer_var.set_int32(this.sub_layer);
 		
 		modified = true;
 		update();
@@ -472,13 +472,20 @@ class EmitterData : SelectableData
 		update();
 	}
 	
-	void update_sublayer(const int sublayer)
+	void update_sub_layer(const int sub_layer)
 	{
-		this.sublayer = clamp(sublayer, 0, 24);
-		sublayer_var.set_int32(this.sublayer);
+		this.sub_layer = clamp(sub_layer, 0, 24);
+		sub_layer_var.set_int32(this.sub_layer);
 		
 		modified = true;
 		update();
 	}
 	
+	// IWorldBoundingBox
+	
+	void get_bounding_box_world(float &out x1, float &out y1, float &out x2, float &out y2) override
+	{
+		script.transform(aabb_x + aabb_x1, aabb_y + aabb_y1, layer, sub_layer, 22, 22, x1, y1);
+		script.transform(aabb_x + aabb_x2, aabb_y + aabb_y2, layer, sub_layer, 22, 22, x2, y2);
+	}
 }
