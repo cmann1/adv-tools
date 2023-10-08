@@ -136,7 +136,7 @@ class PropData : SelectableData
 			for(int i = lines_count - 1; i >= 0; i--)
 			{
 				LineData@ line = @lines[i];
-				// Draw outlines on separate sublayer to sprite so that they can be batched,
+				// Draw outlines on separate sublayer to sprites so that they can be batched,
 				script.g.draw_line_world(22, 23,
 					aabb_x + line.x1, aabb_y + line.y1,
 					aabb_x + line.x2, aabb_y + line.y2,

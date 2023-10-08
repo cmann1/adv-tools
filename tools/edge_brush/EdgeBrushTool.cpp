@@ -378,7 +378,7 @@ class EdgeBrushTool : Tool
 			const int total_time = get_time_us() - start_time;
 			int idx = 100;
 			script.debug.print('DrawCount: ' + stats_draw_count, 0xff00ffff, idx++);
-			script.debug.print('DrawTime: ' + (total_time / 1000) + 'ms', 0xff00ffff, idx++);
+			script.debug.print('DrawTime: ' + (total_time / 1000.0) + 'ms', 0xff00ffff, idx++);
 		}
 		
 		switch(mode)
@@ -732,7 +732,7 @@ class EdgeBrushTool : Tool
 				idx++;
 			script.debug.print('Tiles: ' + tw + ',' + th + ' ' + (tw * th), idx++);
 			script.debug.print('NotSolid: ' + stats_tile_skip_count, idx++);
-			script.debug.print('UpdateTime: ' + (total_time / 1000) + 'ms', idx++);
+			script.debug.print('UpdateTime: ' + (total_time / 1000.0) + 'ms', idx++);
 		}
 	}
 	
