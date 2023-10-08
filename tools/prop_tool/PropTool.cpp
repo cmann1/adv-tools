@@ -1246,7 +1246,7 @@ class PropTool : Tool
 		}
 	}
 	
-	private void select_prop(PropData@ prop_data, const SelectAction action)
+	private void select_prop(PropData@ prop_data, const SelectAction action, const bool update=true)
 	{
 		if(action == SelectAction::Set)
 		{
@@ -1308,9 +1308,12 @@ class PropTool : Tool
 		}
 		
 		selection_angle = 0;
-		recalculate_selection_bounds();
 		
-		toolbar.update_buttons(selected_props_count);
+		if(update)
+		{
+			recalculate_selection_bounds();
+			toolbar.update_buttons(selected_props_count);
+		}
 	}
 	
 	private void select_none()
@@ -1451,21 +1454,18 @@ class PropTool : Tool
 			copy_data.prop_group	= prop_data.prop.prop_group();
 			copy_data.prop_index	= prop_data.prop.prop_index();
 			copy_data.palette		= prop_data.prop.palette();
-			copy_data.layer			= prop_data.prop.layer();
-			copy_data.sub_layer		= prop_data.prop.sub_layer();
+			copy_data.layer			= prop_data.layer;
+			copy_data.sub_layer		= prop_data.sub_layer;
 			copy_data.x				= prop_data.x - ox;
 			copy_data.y				= prop_data.y - oy;
 			copy_data.rotation		= prop_data.prop.rotation();
-			copy_data.scale_x		= prop_data.prop.scale_x();
-			copy_data.scale_y		= prop_data.prop.scale_y();
+			copy_data.scale_x		= prop_data.prop_scale_x;
+			copy_data.scale_y		= prop_data.prop_scale_y;
 			
 			float x1 = prop_data.x + prop_data.local_x1 - ox;
 			float y1 = prop_data.y + prop_data.local_y1 - oy;
 			float x2 = prop_data.x + prop_data.local_x2 - ox;
 			float y2 = prop_data.y + prop_data.local_y2 - oy;
-			
-			script.transform(x1, y1, copy_data.layer, copy_data.sub_layer, selection_layer, selection_sub_layer, x1, y1);
-			script.transform(x2, y2, copy_data.layer, copy_data.sub_layer, selection_layer, selection_sub_layer, x2, y2);
 			
 			if(i == 0)
 			{
@@ -1511,14 +1511,12 @@ class PropTool : Tool
 		else
 		{
 			float mx, my;
-			script.mouse_layer(props_clipboard.layer, props_clipboard.sub_layer, mx, my);
-			x = mx - props_clipboard.x1 - (props_clipboard.x2 - props_clipboard.x1) * 0.5;
-			y = my - props_clipboard.y1 - (props_clipboard.y2 - props_clipboard.y1) * 0.5;
+			script.mouse_layer(props_clipboard.layer, props_clipboard.sub_layer, x, y);
 			
 			if(tile_aligned)
 			{
-				x = floor(x / 48) * 48 + (props_clipboard.x - floor(props_clipboard.x / 48) * 48);
-				y = floor(y / 48) * 48 + (props_clipboard.y - floor(props_clipboard.y / 48) * 48);
+				x = round(x / 48) * 48 + (props_clipboard.x - round(props_clipboard.x / 48) * 48);
+				y = round(y / 48) * 48 + (props_clipboard.y - round(props_clipboard.y / 48) * 48);
 			}
 		}
 		
@@ -1547,18 +1545,11 @@ class PropTool : Tool
 			script.g.add_prop(p);
 			
 			PropData@ data = highlight_prop(p, @outline);
-			select_prop(data, SelectAction::Add);
+			select_prop(data, SelectAction::Add, false);
 		}
 		
-		const float dx = selection_x1 - props_clipboard.x1;
-		const float dy = selection_y1 - props_clipboard.y1;
-		
-		selection_x += dx;
-		selection_y += dy;
-		selection_x1 -= dx;
-		selection_y1 -= dy;
-		selection_x2 -= dx;
-		selection_y2 -= dy;
+		recalculate_selection_bounds();
+		toolbar.update_buttons(selected_props_count);
 		
 		update_alignments_from_origin();
 	}

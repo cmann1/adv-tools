@@ -38,7 +38,7 @@ class PropData : SelectableData
 	private float prop_left, prop_top;
 	private float prop_width, prop_height;
 	private float prop_offset_x, prop_offset_y;
-	private float prop_scale_x, prop_scale_y;
+	float prop_scale_x, prop_scale_y;
 	
 	private int lines_size = 32;
 	private int lines_count;
