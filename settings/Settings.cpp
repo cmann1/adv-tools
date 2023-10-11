@@ -107,4 +107,8 @@ namespace Settings
 	const float EdgeMarkerRadius = 9;
 	const uint EdgeArrowMarkerColour = 0x55ffffff;
 	
+	const float TilePickerLineWidth = 2;
+	const uint TilePickerLineColour = 0xcc44eeff;
+	const uint TilePickerFillColour = 0x3344eeff;
+	
 }
