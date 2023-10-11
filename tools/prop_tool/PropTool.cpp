@@ -955,7 +955,7 @@ class PropTool : Tool
 			const uint layer = p.layer();
 			const uint sub_layer = p.sub_layer();
 			
-			if(!script.editor.check_layer_filter(layer))
+			if(!script.editor.check_layer_filter(layer, sub_layer))
 				continue;
 			
 			if(locked_sublayers[layer * 25 + sub_layer])
@@ -1762,7 +1762,7 @@ class PropTool : Tool
 			const uint layer = p.layer();
 			const uint sub_layer = p.sub_layer();
 			
-			if(!script.editor.check_layer_filter(layer))
+			if(!script.editor.check_layer_filter(layer, sub_layer))
 				continue;
 			
 			if(locked_sublayers[layer * 25 + sub_layer])
