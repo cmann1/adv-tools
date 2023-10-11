@@ -60,22 +60,26 @@ class ExtendedTileTool : Tool
 				const int tile_y = floor_int(layer_y / 48);
 				tileinfo@ tile = script.g.get_tile(tile_x, tile_y, layer);
 				
-				if(tile.solid())
-				{
-					has_picked_tile = true;
-					picked_tile_shape = tile.type();
-					picked_tile_x = tile_x * 48;
-					picked_tile_y = tile_y * 48;
-					picked_tile_layer = layer;
-					
-					script.editor.set_tile_sprite(
-						tile.sprite_set(), tile.sprite_tile(), tile.sprite_palette());
-					script.show_info_popup(
-						'Tile: ' + tile.sprite_set() + '.' +tile.sprite_tile() + '.' +tile.sprite_palette() + '\n' +
-						'Layer: ' + layer,
-						null, PopupPosition::Below, 2);
-					break;
-				}
+				if(!tile.solid())
+					continue;
+				
+				float _;
+				if(!point_in_tile(layer_x, layer_y, tile_x, tile_y, tile.type(), _, _))
+					continue;
+				
+				has_picked_tile = true;
+				picked_tile_shape = tile.type();
+				picked_tile_x = tile_x * 48;
+				picked_tile_y = tile_y * 48;
+				picked_tile_layer = layer;
+				
+				script.editor.set_tile_sprite(
+					tile.sprite_set(), tile.sprite_tile(), tile.sprite_palette());
+				script.show_info_popup(
+					'Tile: ' + tile.sprite_set() + '.' +tile.sprite_tile() + '.' +tile.sprite_palette() + '\n' +
+					'Layer: ' + layer,
+					null, PopupPosition::Below, 2);
+				break;
 			}
 		}
 	}
