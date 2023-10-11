@@ -9,16 +9,16 @@ class TriggerToolHandler
 	
 	protected int state = TriggerHandlerState::Idle;
 	
-	/* The primary selected trigger. */
+	/** The primary selected trigger. */
 	protected entity@ selected_trigger;
-	/* The primary selected trigger type. */
+	/** The primary selected trigger type. */
 	protected string selected_type = '';
-	/* The list of all selected triggers. */
+	/** The list of all selected triggers. */
 	protected array<TriggerHandlerData@> select_list;
 	
 	protected bool is_editing;
-	/* All UI events should return if this is true to avoid script changes triggering updates.
-	 * Can also be set by sub classes before/after change UI properties. */
+	/** All UI events should return if this is true to avoid script changes triggering updates.
+	  * Can also be set by sub classes before/after change UI properties. */
 	protected bool ignore_edit_ui_events;
 	
 	protected PopupOptions@ selected_popup;
@@ -67,21 +67,16 @@ class TriggerToolHandler
 	// Selection
 	// //////////////////////////////////////////////////////////
 	
-	/**
-	 * @brief Must be overriden to return the correct TriggerHandlerData subclass.
-	 * @param trigger
-	 * @return 
-	 */
+	/** Must be overriden to return the correct TriggerHandlerData subclass.
+	  * @param trigger */
 	protected TriggerHandlerData@ create_handler_data(entity@ trigger)
 	{
 		return TriggerHandlerData(trigger);
 	}
 	
 	/**
-	 * @param new_trigger Set to null to deselect all.
-	 * @param primary Set when the built in selected trigger has changed.
-	 * @return 
-	 */
+	  * @param new_trigger Set to null to deselect all.
+	  * @param primary Set when the built in selected trigger has changed. */
 	protected int select_trigger(entity@ new_trigger, bool primary=false)
 	{
 		if(@new_trigger == null)
@@ -159,10 +154,8 @@ class TriggerToolHandler
 		return 1;
 	}
 	
-	/**
-	 * @brief Called after the selection changes. Makes the first selected trigger the primary.
-	 * @param removed
-	 */
+	/** Called after the selection changes. Makes the first selected trigger the primary.
+	  * @param removed */
 	protected void reset_primary_selected_trigger(const bool removed)
 	{
 		if(select_list.length == 0)
@@ -182,9 +175,7 @@ class TriggerToolHandler
 		@script.editor.selected_trigger = selected_trigger;
 	}
 	
-	/**
-	 * @brief Removes/unselects triggers that have been deleted. Call during every `step`.
-	 */
+	/** Removes/unselects triggers that have been deleted. Call during every `step`. */
 	protected void check_selected_triggers()
 	{
 		if(select_list.length == 0)
@@ -223,17 +214,13 @@ class TriggerToolHandler
 		}
 	}
 	
-	/**
-	 * @brief Override to be notified when the selection changes.
-	 * @param primary Has the primary selected trigger changed.
-	 * @param added Has a trigger been added to the selection.
-	 * @param removed Has a trigger been removed from the selection.
-	 */
+	/** Override to be notified when the selection changes.
+	  * @param primary Has the primary selected trigger changed.
+	  * @param added Has a trigger been added to the selection.
+	  * @param removed Has a trigger been removed from the selection. */
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) { }
 	
-	/**
-	 * @brief Some standard logic for editing multiple triggers.
-	 */
+	/** Some standard logic for editing multiple triggers. */
 	protected void do_selection_change_for_editing(
 		const bool show_popup,
 		const bool primary, const bool added, const bool removed)
@@ -291,11 +278,9 @@ class TriggerToolHandler
 		}
 	}
 	
-	/**
-	 * @brief Stores trigger data before editing so changes can be reverted.
-	 * @param only_latest If true only the last selected trigger's data will be stored.
-	 *        Useful if e.g. store_all_triggers_data() has already been called.
-	 */
+	/** Stores trigger data before editing so changes can be reverted.
+	  * @param only_latest If true only the last selected trigger's data will be stored.
+	  *        Useful if e.g. store_all_triggers_data() has already been called. */
 	protected void store_all_triggers_data(const bool only_latest=false)
 	{
 		if(select_list.length == 0)
@@ -314,9 +299,7 @@ class TriggerToolHandler
 		}
 	}
 	
-	/**
-	 * @brief Restores all selected triggers data. `store_all_triggers_data` Must have been called at least once before this.
-	 */
+	/** Restores all selected triggers data. `store_all_triggers_data` Must have been called at least once before this. */
 	protected void restore_all_triggers_data()
 	{
 		for(uint i = 0; i < select_list.length; i++)
@@ -375,20 +358,15 @@ class TriggerToolHandler
 		selected_popup.background_blur = false;
 	}
 	
-	/**
-	 * @brief Override to create the content for the selected popup.
-	 */
+	/** Override to create the content for the selected popup. */
 	protected Element@ create_selected_popup_content()
 	{
 		puts('Warning: create_selected_popup_content not implemented.');
 		return null;
 	}
 	
-	/**
-	 * @brief Call to show or hide the selection popup. `create_selected_popup` must have been called at least once
-	 *        before calling this.
-	 * @param show
-	 */
+	/** Call to show or hide the selection popup. `create_selected_popup` must have been called at least once
+	  * before calling this. */
 	protected void show_selected_popup(const bool show=true)
 	{
 		if(show)
@@ -405,10 +383,8 @@ class TriggerToolHandler
 		}
 	}
 	
-	/**
-	 * @brief Call at the end of every `step` if this handler displays the selection popup.
-	 * @param required_state If set will automatically show and hide the popup according to the current state.
-	 */
+	/** Call at the end of every `step` if this handler displays the selection popup.
+	  * @param required_state If set will automatically show and hide the popup according to the current state. */
 	protected void update_selected_popup_position(const int required_state=TriggerHandlerState::Undefined)
 	{
 		if(@selected_popup == null)
@@ -472,10 +448,8 @@ class TriggerToolHandler
 	// Editing
 	// //////////////////////////////////////////////////////////
 	
-	/**
-	 * @brief Checks the Enter and Escape to start and stop editing.
-	 * @return 0 if nothing happened, 1, if editing was started, and -1 if editing was cancelled.
-	 */
+	/** Checks the Enter and Escape to start and stop editing.
+	  * @return 0 if nothing happened, 1, if editing was started, and -1 if editing was cancelled. */
 	protected int check_edit_keys()
 	{
 		// Start editing with Enter.
@@ -503,9 +477,7 @@ class TriggerToolHandler
 		return 0;
 	}
 	
-	/**
-	 * @brief Override to determine of a sub component is active, e.g. a colour picker or layer button.
-	 */
+	/** Override to determine of a sub component is active, e.g. a colour picker or layer button. */
 	protected bool sub_ui_active()
 	{
 		return false;
@@ -568,9 +540,7 @@ class TriggerToolHandler
 		}
 	}
 	
-	/**
-	 * @brief Override to create the edit window.
-	 */
+	/** Override to create the edit window. */
 	protected void create_edit_window()
 	{
 		puts('Warning: create_edit_window not implemented.');
@@ -583,9 +553,7 @@ class TriggerToolHandler
 		ignore_edit_ui_events = false;
 	}
 	
-	/**
-	 * @brief Override to update the edit controls.
-	 */
+	/** Override to update the edit controls. */
 	protected void update_edit_properties()
 	{
 		
@@ -630,9 +598,7 @@ class TriggerToolHandler
 		return closest;
 	}
 	
-	/**
-	 * @brief Draw lines from all the selected triggers to the popup.
-	 */
+	/** Draw lines from all the selected triggers to the popup. */
 	protected void draw_selected_popup_connections()
 	{
 		if(@selected_popup != null && selected_popup.popup_visible)
@@ -641,9 +607,7 @@ class TriggerToolHandler
 		}
 	}
 	
-	/**
-	 * @brief Draw lines from all the selected triggers to the given UI element.
-	 */
+	/** Draw lines primary trigger to other selected triggers. */
 	protected void draw_selected_ui_connections(Element@ element)
 	{
 		if(@element == null)
