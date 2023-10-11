@@ -5,6 +5,7 @@ class ExtendedPropTool : Tool
 	private PropData@ pick_data;
 	
 	private ShortcutKey pick_key;
+	private bool highlight_picked_prop = true;
 	
 	ExtendedPropTool(AdvToolScript@ script)
 	{
@@ -24,6 +25,8 @@ class ExtendedPropTool : Tool
 		
 		pick_key.init(script);
 		reload_shortcut_key();
+		
+		highlight_picked_prop = script.config.get_bool('HighlightPickedProp', highlight_picked_prop);
 	}
 	
 	bool reload_shortcut_key() override
@@ -66,7 +69,7 @@ class ExtendedPropTool : Tool
 	
 	protected void draw_impl(const float sub_frame) override
 	{
-		if(@pick_data != null)
+		if(highlight_picked_prop && @pick_data != null)
 		{
 			pick_data.draw(PropToolHighlight::Both);
 		}
