@@ -21,6 +21,9 @@ class TriggerToolHandler
 	  * Can also be set by sub classes before/after change UI properties. */
 	protected bool ignore_edit_ui_events;
 	
+	/** Whether to show a popup above the selected trigger. */
+	protected bool show_popup = false;
+	
 	protected PopupOptions@ selected_popup;
 	protected Container@ selected_popup_dummy_overlay;
 	
@@ -34,6 +37,8 @@ class TriggerToolHandler
 	}
 	
 	void build_sprites(message@ msg) { }
+	
+	void on_settings_loaded() { }
 	
 	bool should_handle(entity@ trigger, const string &in type)
 	{
@@ -222,7 +227,6 @@ class TriggerToolHandler
 	
 	/** Some standard logic for editing multiple triggers. */
 	protected void do_selection_change_for_editing(
-		const bool show_popup,
 		const bool primary, const bool added, const bool removed)
 	{
 		if(is_editing && select_list.length == 0)
@@ -251,13 +255,13 @@ class TriggerToolHandler
 		
 		if(@selected_trigger != null)
 		{
-			if(@selected_popup == null)
-			{
-				create_selected_popup();
-			}
-			
 			if(show_popup)
 			{
+				if(@selected_popup == null)
+				{
+					create_selected_popup();
+				}
+				
 				show_selected_popup();
 			}
 			
@@ -269,11 +273,7 @@ class TriggerToolHandler
 		}
 		else
 		{
-			if(show_popup)
-			{
-				show_selected_popup(false);
-			}
-			
+			show_selected_popup(false);
 			stop_editing(true);
 		}
 	}
@@ -369,6 +369,9 @@ class TriggerToolHandler
 	  * before calling this. */
 	protected void show_selected_popup(const bool show=true)
 	{
+		if(@selected_popup == null)
+			return;
+		
 		if(show)
 		{
 			script.ui.add_child(selected_popup_dummy_overlay);
@@ -605,9 +608,37 @@ class TriggerToolHandler
 		{
 			draw_selected_ui_connections(selected_popup.popup);
 		}
+		else
+		{
+			draw_selected_connections();
+		}
 	}
 	
 	/** Draw lines primary trigger to other selected triggers. */
+	protected void draw_selected_connections()
+	{
+		if(select_list.length <= 1)
+			return;
+		
+		float x1 ,y1;
+		script.world_to_hud(22, 5, selected_trigger.x(), selected_trigger.y(), x1, y1, false);
+		
+		const float line_width = 4;
+		const uint colour = multiply_alpha(script.ui.style.normal_bg_clr, 0.5);
+		
+		for(uint i = 0; i < select_list.length; i++)
+		{
+			TriggerHandlerData@ data = select_list[i];
+			if(@data.trigger == @selected_trigger)
+				continue;
+			
+			float x2, y2;
+			script.world_to_hud(22, 5, data.trigger.x(), data.trigger.y(), x2, y2, false);
+			script.ui.style.draw_line(x1, y1, x2, y2, line_width, colour);
+		}
+	}
+	
+	/** Draw lines from all the selected triggers to the given UI element. */
 	protected void draw_selected_ui_connections(Element@ element)
 	{
 		if(@element == null)

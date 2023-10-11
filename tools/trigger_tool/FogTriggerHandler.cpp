@@ -46,6 +46,18 @@ class FogTriggerHandler : TriggerToolHandler
 	FogTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
 		super(script, tool);
+		
+		on_settings_loaded();
+	}
+	
+	void on_settings_loaded() override
+	{
+		show_popup = script.config.get_bool('ShowFogEditButton', true);
+		
+		if(!show_popup)
+		{
+			show_selected_popup(false);
+		}
 	}
 	
 	void build_sprites(message@ msg) override
@@ -131,7 +143,7 @@ class FogTriggerHandler : TriggerToolHandler
 		
 		update_filter_layer_selector();
 		
-		do_selection_change_for_editing(true, primary, added, removed);
+		do_selection_change_for_editing(primary, added, removed);
 	}
 	
 	protected void start_editing() override

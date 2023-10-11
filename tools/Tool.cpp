@@ -279,6 +279,8 @@ class Tool
 		}
 	}
 	
+	/** Called when the user ini is reloaded by Shift+Clicking the help icon.
+	  * Use to update values from config. */
 	void on_settings_loaded()
 	{
 		

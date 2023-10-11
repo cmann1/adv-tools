@@ -36,6 +36,14 @@ class ExtendedTriggerTool : Tool
 		}
 	}
 	
+	void on_settings_loaded() override
+	{
+		for(uint i = 0; i < trigger_handlers.length; i++)
+		{
+			trigger_handlers[i].on_settings_loaded();
+		}
+	}
+	
 	private void add_trigger_handler(TriggerToolHandler@ handler)
 	{
 		trigger_handlers.insertLast(handler);

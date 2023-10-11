@@ -52,11 +52,23 @@ class TextTriggerHandler : TriggerToolHandler
 	TextTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
 		super(script, tool);
+		
+		on_settings_loaded();
 	}
 	
 	void build_sprites(message@ msg) override
 	{
 		build_sprite(msg, 'icon_text');
+	}
+	
+	void on_settings_loaded() override
+	{
+		show_popup = script.config.get_bool('ShowTextEditButton', true);
+		
+		if(!show_popup)
+		{
+			show_selected_popup(false);
+		}
 	}
 	
 	bool should_handle(entity@ trigger, const string &in type) override
@@ -334,7 +346,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	protected void on_selection_changed(const bool primary, const bool added, const bool removed) override
 	{
-		do_selection_change_for_editing(true, primary, added, removed);
+		do_selection_change_for_editing(primary, added, removed);
 		
 		if(!primary && select_list.length != 0)
 		{
