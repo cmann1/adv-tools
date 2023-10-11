@@ -53,6 +53,7 @@ class FogTriggerHandler : TriggerToolHandler
 	void on_settings_loaded() override
 	{
 		show_popup = script.config.get_bool('ShowFogEditButton', true);
+		can_edit_with_enter = script.config.get_bool('EditFogWithEnter', true);
 		
 		if(!show_popup)
 		{

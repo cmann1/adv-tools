@@ -23,6 +23,7 @@ class TriggerToolHandler
 	
 	/** Whether to show a popup above the selected trigger. */
 	protected bool show_popup = false;
+	protected bool can_edit_with_enter = true;
 	
 	protected PopupOptions@ selected_popup;
 	protected Container@ selected_popup_dummy_overlay;
@@ -314,6 +315,9 @@ class TriggerToolHandler
 	 */
 	protected bool check_mouse_multi_select()
 	{
+		// Multi select is pointless if there is no way to edit the triggers.
+		if(!can_edit_with_enter && !show_popup)
+			return false;
 		if(!has_selection || script.alt.down || !script.shift.down || !script.mouse.left_press)
 			return false;
 		
@@ -456,7 +460,7 @@ class TriggerToolHandler
 	protected int check_edit_keys()
 	{
 		// Start editing with Enter.
-		if(!is_editing && @selected_trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
+		if(can_edit_with_enter && !is_editing && @selected_trigger != null && script.scene_focus && script.consume_pressed_gvb(GVB::Return))
 		{
 			start_editing();
 			return 1;
@@ -608,7 +612,7 @@ class TriggerToolHandler
 		{
 			draw_selected_ui_connections(selected_popup.popup);
 		}
-		else
+		else if(can_edit_with_enter)
 		{
 			draw_selected_connections();
 		}

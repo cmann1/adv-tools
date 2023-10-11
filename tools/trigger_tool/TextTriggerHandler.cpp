@@ -64,6 +64,7 @@ class TextTriggerHandler : TriggerToolHandler
 	void on_settings_loaded() override
 	{
 		show_popup = script.config.get_bool('ShowTextEditButton', true);
+		can_edit_with_enter = script.config.get_bool('EditTextWithEnter', true);
 		
 		if(!show_popup)
 		{
@@ -148,7 +149,7 @@ class TextTriggerHandler : TriggerToolHandler
 		return colour_swatch.open || layer_button.open;
 	}
 	
-	/// Handle shortcut keys like Escape and Enter.
+	/** Handle shortcut keys like Escape and Enter. */
 	private void check_keys()
 	{
 		if(state == TriggerHandlerState::Idle)
