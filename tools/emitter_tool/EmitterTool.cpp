@@ -146,7 +146,7 @@ class EmitterTool : Tool
 		{
 			entity@ emitter = script.g.get_entity_collision_index(i);
 			
-			if(!script.editor.check_layer_filter(emitter.layer()))
+			if(!script.editor.check_layer_filter(emitter.layer(), emitter.vars().get_var('draw_depth_sub').get_int32()))
 				continue;
 			
 			EmitterData@ data = highlight(emitter, i);
@@ -790,7 +790,7 @@ class EmitterTool : Tool
 			
 			if(select_rect_pending == 0)
 			{
-				if(!script.editor.check_layer_filter(e.layer()))
+				if(!script.editor.check_layer_filter(data.layer, data.sub_layer))
 					continue;
 				
 				if(mouse.left_down)
@@ -804,7 +804,7 @@ class EmitterTool : Tool
 			}
 			else if(select_rect_pending == 1)
 			{
-				if(!script.editor.check_layer_filter(e.layer()))
+				if(!script.editor.check_layer_filter(data.layer, data.sub_layer))
 					continue;
 				
 				if(!data.selected)
