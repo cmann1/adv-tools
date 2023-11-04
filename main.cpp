@@ -36,6 +36,7 @@
 #include 'settings/Settings.cpp';
 #include 'tools/edge_brush/EdgeBrushTool.cpp';
 #include 'tools/emitter_tool/EmitterTool.cpp';
+#include 'tools/shape_tool/ShapeTool.cpp';
 #include 'tools/prop_line_tool/PropLineTool.cpp';
 #include 'tools/prop_tool/PropTool.cpp';
 #include 'tools/trigger_tool/ExtendedTriggerTool.cpp';
@@ -451,8 +452,8 @@ class AdvToolScript
 		@tools_map['Particle'] = ParticleEditorTool(this);
 		
 		// Custom
-		
 		add_tool('Tiles',		EdgeBrushTool(this));
+		add_tool('Tiles',		ShapeTool(this));
 		add_tool('Props',		PropTool(this));
 		add_tool('Props',		PropLineTool(this));
 		
