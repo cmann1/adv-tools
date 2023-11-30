@@ -190,6 +190,27 @@ class Config
 		return parseFloat(string(values[name]));
 	}
 	
+	void get_floats(
+		const string &in name,
+		float &out value_1, float &out value_2,
+		const float default_1=0, const float default_2=0)
+	{
+		if(!values.exists(name))
+		{
+			value_1 = default_1;
+			value_2 = default_2;
+			return;
+		}
+		
+		array<string> parts = string(values[name]).split(' ');
+		
+		value_1 = parseFloat(parts[0]);
+		value_2 = parts.length > 1 ? parseFloat(parts[1]) : default_2;
+		
+		value_1 = is_nan(value_1) ? default_1 : value_1;
+		value_2 = is_nan(value_2) ? default_2 : value_2;
+	}
+	
 	int get_vk(const string &in name, const int default_value=-1)
 	{
 		if(!values.exists(name))

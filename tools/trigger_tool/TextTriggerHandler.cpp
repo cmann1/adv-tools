@@ -51,7 +51,7 @@ class TextTriggerHandler : TriggerToolHandler
 	
 	TextTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
-		super(script, tool);
+		super(script, tool, 'TextTool');
 		
 		on_settings_loaded();
 	}
@@ -465,8 +465,6 @@ class TextTriggerHandler : TriggerToolHandler
 		edit_window.y = 20;
 		edit_window.min_width = 450;
 		edit_window.min_height = 350;
-		edit_window.width  = edit_window.min_width;
-		edit_window.height = edit_window.min_height;
 		@edit_window.layout = AnchorLayout(ui).set_padding(0);
 		edit_window.close.on(EventCallback(on_cancel_click));
 		

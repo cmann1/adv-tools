@@ -7,6 +7,8 @@ class TriggerToolHandler
 	protected AdvToolScript@ script;
 	protected ExtendedTriggerTool@ tool;
 	
+	protected string name;
+	
 	protected int state = TriggerHandlerState::Idle;
 	
 	/** The primary selected trigger. */
@@ -31,10 +33,11 @@ class TriggerToolHandler
 	protected Button@ edit_button;
 	protected Window@ edit_window;
 	
-	TriggerToolHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
+	TriggerToolHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool, const string &in name)
 	{
 		@this.script = script;
 		@this.tool = tool;
+		this.name = name;
 	}
 	
 	void build_sprites(message@ msg) { }
@@ -508,7 +511,14 @@ class TriggerToolHandler
 		if(is_window_created)
 		{
 			edit_window.fit_to_contents(true);
+			
+			float w, h;
+			script.config.get_floats(name + 'WindowSize', w, h, edit_window.min_width, edit_window.min_height);
+			edit_window.width = max(max(w, edit_window.min_width), edit_window.width);
+			edit_window.height = max(max(h, edit_window.min_height), edit_window.height);
+			
 			edit_window.centre();
+			
 			script.window_manager.force_immediate_reposition(edit_window);
 		}
 		

@@ -45,7 +45,7 @@ class FogTriggerHandler : TriggerToolHandler
 	
 	FogTriggerHandler(AdvToolScript@ script, ExtendedTriggerTool@ tool)
 	{
-		super(script, tool);
+		super(script, tool, 'FogTool');
 		
 		on_settings_loaded();
 	}
