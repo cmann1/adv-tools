@@ -1,6 +1,6 @@
-#include '../../../lib/utils/chr.cpp';
-#include '../../../lib/utils/vk_from_name.cpp';
+#include '../../../lib/input/vk_from_name.cpp';
 #include '../../../lib/string.cpp';
+#include '../../../lib/utils/chr.cpp';
 
 #include 'ConfigState.cpp';
 #include 'ShortcutKey.cpp';

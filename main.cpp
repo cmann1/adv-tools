@@ -3,14 +3,14 @@
 #include '../../lib/string.cpp';
 #include '../../lib/math/math.cpp';
 #include '../../lib/math/geom.cpp';
-#include '../../lib/enums/GVB.cpp';
-#include '../../lib/enums/VK.cpp';
+#include '../../lib/input/VK.cpp';
 #include '../../lib/embed_utils.cpp';
 #include '../../lib/drawing/common.cpp';
 #include '../../lib/drawing/circle.cpp';
 #include '../../lib/debug/Debug.cpp';
 #include '../../lib/enums/ColType.cpp';
 #include '../../lib/input/common.cpp';
+#include '../../lib/input/GVB.cpp';
 #include '../../lib/input/Mouse.cpp';
 #include '../../lib/math/Line.cpp';
 #include '../../lib/utils/colour.cpp';

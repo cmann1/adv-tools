@@ -1,6 +1,6 @@
-#include '../../../lib/enums/VK.cpp';
+#include '../../../lib/input/VK.cpp';
 #include '../../../lib/input/ModifierKey.cpp';
-#include '../../../lib/utils/vk_from_name.cpp';
+#include '../../../lib/input/vk_from_name.cpp';
 
 /// Special "VK" for mouse wheel up.
 const int VK_MouseWheelUp	= 0xff01;
