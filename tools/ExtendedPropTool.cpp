@@ -57,6 +57,10 @@ class ExtendedPropTool : Tool
 				script.editor.set_prop(p.prop_set(), p.prop_group(), p.prop_index(), p.palette());
 				script.editor.set_selected_layer(p.layer());
 				script.editor.set_selected_sub_layer(p.sub_layer());
+				script.show_info_popup(
+					'Prop: ' + p.prop_set() + '.' + p.prop_group() + '.' + p.prop_index() + '|' + p.palette() + '\n' +
+					'Layer: ' + p.layer() + '.' + p.sub_layer(),
+					null, PopupPosition::Below, 2);
 			}
 			else
 			{
