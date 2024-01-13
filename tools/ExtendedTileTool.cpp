@@ -45,28 +45,14 @@ class ExtendedTileTool : Tool
 	{
 		has_picked_tile = false;
 		
-		if(script.mouse_in_scene && !script.space.down && !script.handles.mouse_over && pick_key.down())
+		if(!script.space.down && !script.handles.mouse_over && pick_key.down())
 		{
 			pick_key.clear_gvb();
 			
-			for(int layer = 20; layer >= 6; layer--)
+			int tile_x, tile_y, layer;
+			tileinfo@ tile = script.pick_tile(tile_x, tile_y, layer);
+			if (@tile != null)
 			{
-				if(!script.editor.get_layer_visible(layer))
-					continue;
-				
-				float layer_x, layer_y;
-				script.mouse_layer(layer, 10, layer_x, layer_y);
-				const int tile_x = floor_int(layer_x / 48);
-				const int tile_y = floor_int(layer_y / 48);
-				tileinfo@ tile = script.g.get_tile(tile_x, tile_y, layer);
-				
-				if(!tile.solid())
-					continue;
-				
-				float _;
-				if(!point_in_tile(layer_x, layer_y, tile_x, tile_y, tile.type(), _, _))
-					continue;
-				
 				has_picked_tile = true;
 				picked_tile_shape = tile.type();
 				picked_tile_x = tile_x * 48;
@@ -79,7 +65,6 @@ class ExtendedTileTool : Tool
 					'Tile: ' + tile.sprite_set() + '.' +tile.sprite_tile() + '.' +tile.sprite_palette() + '\n' +
 					'Layer: ' + layer,
 					null, PopupPosition::Below, 2);
-				break;
 			}
 		}
 	}

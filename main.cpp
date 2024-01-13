@@ -1041,6 +1041,35 @@ class AdvToolScript
 		return closest;
 	}
 	
+	tileinfo@ pick_tile(int &out tile_x, int &out tile_y, int &out layer)
+	{
+		if(!mouse_in_scene)
+			return null;
+		
+		for(layer = 20; layer >= 6; layer--)
+		{
+			if(!editor.get_layer_visible(layer))
+				continue;
+			
+			float layer_x, layer_y;
+			mouse_layer(layer, 10, layer_x, layer_y);
+			tile_x = floor_int(layer_x / 48);
+			tile_y = floor_int(layer_y / 48);
+			tileinfo@ tile = g.get_tile(tile_x, tile_y, layer);
+			
+			if(!tile.solid())
+				continue;
+			
+			float _;
+			if(!point_in_tile(layer_x, layer_y, tile_x, tile_y, tile.type(), _, _))
+				continue;
+
+			return tile;
+		}
+		
+		return null;
+	}
+	
 	int query_onscreen_entities(const ColType type, const bool expand_for_parallax=false)
 	{
 		float x1, y1, x2, y2;
