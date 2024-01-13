@@ -12,8 +12,8 @@ class ShapeTool : Tool
 {
 	
 	private Mouse@ mouse;
-	private TileWindow@ tile_window;
-	private ShapeWindow@ shape_window;
+	private TileWindow tile_window;
+	private ShapeWindow shape_window;
 	
 	private bool dragging;
 	private float drag_start_x, drag_start_y;
@@ -34,20 +34,6 @@ class ShapeTool : Tool
 	void on_init() override
 	{
 		@mouse = script.mouse;
-		
-		UI@ ui = script.ui;
-		
-		@tile_window = TileWindow(ui);
-		tile_window.x = 90;
-		tile_window.y = 70;
-		ui.add_child(tile_window);
-		script.window_manager.register_element(tile_window);
-		
-		@shape_window = ShapeWindow(ui);
-		shape_window.x = 460;
-		shape_window.y = 70;
-		ui.add_child(shape_window);
-		script.window_manager.register_element(shape_window);
 	}
 
 	void build_sprites(message@ msg) override
@@ -164,18 +150,18 @@ class ShapeTool : Tool
 	
 	protected void on_select_impl() override
 	{
-		script.editor.hide_panels_gui(true);
+		tile_window.show(script, this);
+		shape_window.show(script, this);
 		
-		tile_window.show();
-		shape_window.show();
+		script.hide_gui_panels(true);
 	}
 	
 	protected void on_deselect_impl() override
 	{
-		script.editor.hide_panels_gui(false);
-		
 		tile_window.hide();
 		shape_window.hide();
+		
+		script.hide_gui_panels(false);
 	}
 	
 	protected void step_impl() override
