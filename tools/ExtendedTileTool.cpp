@@ -63,7 +63,7 @@ class ExtendedTileTool : Tool
 					tile.sprite_set(), tile.sprite_tile(), tile.sprite_palette());
 				script.editor.set_selected_layer(layer);
 				script.show_info_popup(
-					'Tile: ' + tile.sprite_set() + '.' +tile.sprite_tile() + '.' +tile.sprite_palette() + '\n' +
+					'Tile: ' + tile.sprite_set() + '.' + tile.sprite_tile() + '.' + tile.sprite_palette() + '\n' +
 					'Layer: ' + layer,
 					null, PopupPosition::Below, 2);
 			}
