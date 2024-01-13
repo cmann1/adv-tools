@@ -85,41 +85,24 @@ class ShapeWindow
 		shape_container.fit_to_contents();
 		window.add_child(shape_container);
 		
-		Container@ custom_shape_container = Container(ui);
-		@custom_shape_container.layout = FlowLayout(ui, FlowDirection::Row);
-		
-		Label@ custom_label = Label(ui, 'Clone');
-		custom_label.width = 2 * 48 - 2 * style.spacing;
-		custom_label.height = 48;
-		custom_label.align_h = GraphicAlign::Centre;
-		custom_label.align_v = GraphicAlign::Middle;
-		
-		Button@ select_button = Button(ui, 'X');
+		Button@ select_button = Button(ui, 'Copy');
 		select_button.name = 'select';
-		select_button.width = 48;
-		select_button.height = 48;
 		select_button.selectable = true;
 		@select_button.tooltip = PopupOptions(ui, 'Select a region', false, PopupPosition::Below);
+		select_button.fit_to_contents();
 		
-		@custom_button = Button(ui, 'O');
+		@custom_button = Button(ui, 'Paste');
 		custom_button.name = 'custom';
-		custom_button.width = 48;
-		custom_button.height = 48;
 		custom_button.selectable = true;
 		custom_button.disabled = true;
 		@custom_button.tooltip = PopupOptions(ui, 'Paste tiles', false, PopupPosition::Below);
+		custom_button.fit_to_contents();
 		
 		button_group.add(select_button);
 		button_group.add(custom_button);
 		
-		custom_shape_container.add_child(custom_label);
-		custom_shape_container.add_child(select_button);
-		custom_shape_container.add_child(custom_button);
-		
-		custom_shape_container.width = shape_container.width;
-		custom_shape_container.fit_to_contents(false);
-		
-		window.add_child(custom_shape_container);
+		window.add_button_left(select_button);
+		window.add_button_right(custom_button);
 		
 		window.fit_to_contents(true);
 		script.window_manager.register_element(window);
