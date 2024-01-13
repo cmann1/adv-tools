@@ -48,15 +48,17 @@ class ShapeWindow
 		Style@ style = ui.style;
 		
 		@window = Window(ui, 'Shape', false, true);
-		window.x = 460;
+		window.x = 430;
 		window.y = 70;
 		@window.layout = FlowLayout(ui, FlowDirection::Row);
+		window.layout.set_padding(0);
 		
 		@shape_container = Container(ui);
 		
 		GridLayout@ grid = GridLayout(ui, 4);
 		grid.row_spacing = 0;
 		grid.column_spacing = 0;
+		grid.set_padding(0);
 		@shape_container.layout = grid;
 		
 		ButtonGroup@ button_group = ButtonGroup(ui, false);
