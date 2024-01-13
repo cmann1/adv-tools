@@ -55,6 +55,8 @@ class ExtendedPropTool : Tool
 				@pick_data = @prop_tool.highlighted_props_list[0];
 				prop@ p = pick_data.prop;
 				script.editor.set_prop(p.prop_set(), p.prop_group(), p.prop_index(), p.palette());
+				script.editor.set_selected_layer(p.layer());
+				script.editor.set_selected_sub_layer(p.sub_layer());
 			}
 			else
 			{
