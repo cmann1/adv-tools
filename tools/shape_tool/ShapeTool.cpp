@@ -105,8 +105,8 @@ class ShapeTool : Tool
 			if(!script.editor.get_layer_visible(layer))
 				continue;
 			
-			const float mx = script.g.mouse_x_world(0, layer);
-			const float my = script.g.mouse_y_world(0, layer);
+			float mx, my;
+			script.mouse_layer(layer, 10, mx, my);
 			
 			const int tile_x = int(floor(mx / 48));
 			const int tile_y = int(floor(my / 48));
@@ -137,12 +137,16 @@ class ShapeTool : Tool
 	private void draw_selection()
 	{
 		const int layer = script.editor.get_selected_layer();
+		
+		float drag_end_x, drag_end_y;
+		script.mouse_layer(layer, 10, drag_end_x, drag_end_y);
+		
 		int tx1, ty1, tx2, ty2;
 		fix_tile_selection(
 			drag_start_x,
 			drag_start_y,
-			script.g.mouse_x_world(0, layer),
-			script.g.mouse_y_world(0, layer),
+			drag_end_x,
+			drag_end_y,
 			tx1, ty1, tx2, ty2
 		);
 		
@@ -193,8 +197,7 @@ class ShapeTool : Tool
 			{
 				dragging = true;
 				const int layer = script.editor.get_selected_layer();
-				drag_start_x = script.g.mouse_x_world(0, layer);
-				drag_start_y = script.g.mouse_y_world(0, layer);
+				script.mouse_layer(layer, 10, drag_start_x, drag_start_y);
 			}
 			
 			// Drag end
@@ -205,12 +208,15 @@ class ShapeTool : Tool
 				{
 					const int layer = script.editor.get_selected_layer();
 					
+					float drag_end_x, drag_end_y;
+					script.mouse_layer(layer, 10, drag_end_x, drag_end_y);
+					
 					int tx1, ty1, tx2, ty2;
 					fix_tile_selection(
 						drag_start_x,
 						drag_start_y,
-						script.g.mouse_x_world(0, layer),
-						script.g.mouse_y_world(0, layer),
+						drag_end_x,
+						drag_end_y,
 						tx1, ty1, tx2, ty2
 					);
 					
