@@ -51,7 +51,7 @@ class PaletteMenu : Container
 		super(ui);
 		
 		@layout = FlowLayout(ui, FlowDirection::Row);
-		width = 72 + 2 * ui.style.spacing;
+		layout.set_padding(0);
 		
 		@button_group = ButtonGroup(ui, false);
 		button_group.select.on(EventCallback(on_palette_select));
@@ -94,6 +94,8 @@ class PaletteMenu : Container
 			button_group.add(b);
 			add_child(b);
 		}
+		
+		fit_to_contents(true);
 	}
 	
 	private void on_palette_select(EventInfo@ event)
@@ -138,13 +140,16 @@ class TileWindow
 		window.x = 90;
 		window.y = 70;
 		@window.layout = FlowLayout(ui, FlowDirection::Column);
+		window.layout.set_padding(0);
 		
 		ScrollView@ tile_view = ScrollView(ui);
-		tile_view.x = 0;
-		tile_view.y = 0;
-		tile_view.width = 3 * 72 + 5 * style.spacing + style.default_scrollbar_size;
-		tile_view.height = 6 * 72 + 7 * style.spacing + 12 * EPSILON; // was having trouble with the bottom row
+		tile_view.width = 3 * 72 + 3 * style.spacing + style.default_scrollbar_size;
+		tile_view.height = 6 * 72 + 5 * style.spacing + 12 * EPSILON; // was having trouble with the bottom row
 		tile_view.scroll_amount = 72 + style.spacing - EPSILON;
+		tile_view.content_padding_left = 0;
+		tile_view.content_padding_right = 0;
+		tile_view.content_padding_top = 0;
+		tile_view.content_padding_bottom = 0;
 		window.add_child(tile_view);
 		
 		@tile_container = tile_view.content;
