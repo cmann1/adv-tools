@@ -151,8 +151,8 @@ class TileWindow : Window
 			for(uint sprite_tile = 1; sprite_tile <= TILE_COUNTS[sprite_set-1].length(); sprite_tile++)
 			{
 				Image@ t = Image(ui, SPRITE_SET, 'tile_' + sprite_set + '_' + sprite_tile + '_1', 96, 96);
-				t.width = 72;
-				t.height = 72;
+				t.width = 70;
+				t.height = 70;
 				t.sizing = ImageSize::None;
 				
 				Button@ b = Button(ui, t);
