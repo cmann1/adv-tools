@@ -12,6 +12,8 @@ class ShapeTool : Tool
 {
 	
 	private Mouse@ mouse;
+	private ShortcutKey pick_key;
+	
 	private TileWindow tile_window;
 	private ShapeWindow shape_window;
 	
@@ -34,6 +36,15 @@ class ShapeTool : Tool
 	void on_init() override
 	{
 		@mouse = script.mouse;
+		
+		pick_key.init(script);
+		reload_shortcut_key();
+	}
+	
+	bool reload_shortcut_key() override
+	{
+		pick_key.from_config('KeyPickTile', 'MiddleClick');
+		return Tool::reload_shortcut_key();
 	}
 
 	void build_sprites(message@ msg) override
@@ -86,28 +97,14 @@ class ShapeTool : Tool
 
 	private void pick_tile_at_mouse()
 	{
-		for(int layer = 20; layer >= 6; layer--)
+		int _, layer;
+		tileinfo@ tile = script.pick_tile(_, _, layer);
+		if (@tile != null)
 		{
-			if(!script.editor.get_layer_visible(layer))
-				continue;
-			
-			float mx, my;
-			script.mouse_layer(layer, 10, mx, my);
-			
-			const int tile_x = int(floor(mx / 48));
-			const int tile_y = int(floor(my / 48));
-			
-			tileinfo@ tile = script.g.get_tile(tile_x, tile_y, layer);
-			
-			float _;
-			if(tile.solid() && point_in_tile(mx, my, tile_x, tile_y, tile.type(), _, _))
-			{
-				script.editor.set_selected_layer(layer);
-				tile_window.select_tile(tile.sprite_set(), tile.sprite_tile());
-				tile_window.sprite_palette = tile.sprite_palette();
-				shape_window.tile_shape = tile.type();
-				break;
-			}
+			script.editor.set_selected_layer(layer);
+			tile_window.select_tile(tile.sprite_set(), tile.sprite_tile());
+			tile_window.sprite_palette = tile.sprite_palette();
+			shape_window.tile_shape = tile.type();
 		}
 	}
 	
@@ -174,7 +171,11 @@ class ShapeTool : Tool
 				if(mouse.right_down) set_tile_at_mouse(false);
 			}
 			
-			if(mouse.middle_press) pick_tile_at_mouse();
+			if(pick_key.down())
+			{
+				pick_key.clear_gvb();
+				pick_tile_at_mouse();
+			}
 			
 			if(script.ctrl.down && mouse.scroll != 0) change_layer(mouse.scroll);
 			
