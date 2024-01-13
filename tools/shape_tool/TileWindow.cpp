@@ -108,8 +108,15 @@ class PaletteMenu : Container
 }
 
 
-class TileWindow : Window
+class TileWindow
 {
+	
+	private AdvToolScript@ script;
+	private ShapeTool@ tool;
+	
+	private Window@ window;
+	private Container@ tile_container;
+	private PaletteMenu@ palette_menu;
 	
 	private int _sprite_set = 1;
 	private int _sprite_tile = 1;
@@ -122,21 +129,23 @@ class TileWindow : Window
 		set { palette_menu.sprite_palette = value; }
 	}
 	
-	private Container@ tile_container;
-	private PaletteMenu@ palette_menu;
-	
-	TileWindow(UI@ ui)
+	private void create_ui()
 	{
-		super(ui, 'Tile', false);
+		UI@ ui = script.ui;
+		Style@ style = ui.style;
 		
-		@layout = FlowLayout(ui, FlowDirection::Column);
+		@window = Window(ui, 'Tile', false, true);
+		window.x = 90;
+		window.y = 70;
+		@window.layout = FlowLayout(ui, FlowDirection::Column);
 		
 		ScrollView@ tile_view = ScrollView(ui);
 		tile_view.x = 0;
 		tile_view.y = 0;
-		tile_view.width = 3 * 72 + 5 * ui.style.spacing + ui.style.default_scrollbar_size;
-		tile_view.height = 6 * 72 + 7 * ui.style.spacing + 12 * EPSILON; // was having trouble with the bottom row
-		tile_view.scroll_amount = 72 + ui.style.spacing - EPSILON;
+		tile_view.width = 3 * 72 + 5 * style.spacing + style.default_scrollbar_size;
+		tile_view.height = 6 * 72 + 7 * style.spacing + 12 * EPSILON; // was having trouble with the bottom row
+		tile_view.scroll_amount = 72 + style.spacing - EPSILON;
+		window.add_child(tile_view);
 		
 		@tile_container = tile_view.content;
 		
@@ -170,11 +179,29 @@ class TileWindow : Window
 		}
 		
 		@palette_menu = PaletteMenu(ui);
+		window.add_child(palette_menu);
 		
-		add_child(tile_view);
-		add_child(palette_menu);
+		window.fit_to_contents(true);
+		script.window_manager.register_element(window);
+		ui.add_child(window);
+	}
+	
+	void show(AdvToolScript@ script, ShapeTool@ tool)
+	{
+		if(@this.script == null)
+		{
+			@this.script = script;
+			@this.tool = tool;
+			
+			create_ui();
+		}
 		
-		fit_to_contents(true);
+		window.show();
+	}
+	
+	void hide()
+	{
+		window.hide();
 	}
 	
 	void select_tile(int sprite_set, int sprite_tile)

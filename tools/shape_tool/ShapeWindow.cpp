@@ -9,9 +9,13 @@ const array<int> SHAPE_MAP = {
 	 6,  5, 13, 14
 };
 
-class ShapeWindow : Window
+class ShapeWindow
 {
 	
+	private AdvToolScript@ script;
+	private ShapeTool@ tool;
+	
+	private Window@ window;
 	private Container@ shape_container;
 	private Button@ custom_button;
 	
@@ -38,11 +42,15 @@ class ShapeWindow : Window
 	bool selecting_tiles { get const { return _selecting_tiles; } }
 	bool using_custom_shape { get const { return _using_custom_shape; } }
 	
-	ShapeWindow(UI@ ui)
+	void create_ui()
 	{
-		super(ui, 'Shape', false);
+		UI@ ui = script.ui;
+		Style@ style = ui.style;
 		
-		@layout = FlowLayout(ui, FlowDirection::Row);
+		@window = Window(ui, 'Shape', false, true);
+		window.x = 460;
+		window.y = 70;
+		@window.layout = FlowLayout(ui, FlowDirection::Row);
 		
 		@shape_container = Container(ui);
 		
@@ -73,12 +81,13 @@ class ShapeWindow : Window
 		}
 		
 		shape_container.fit_to_contents();
+		window.add_child(shape_container);
 		
 		Container@ custom_shape_container = Container(ui);
 		@custom_shape_container.layout = FlowLayout(ui, FlowDirection::Row);
 		
 		Label@ custom_label = Label(ui, 'Clone');
-		custom_label.width = 2 * 48 - 2 * ui.style.spacing;
+		custom_label.width = 2 * 48 - 2 * style.spacing;
 		custom_label.height = 48;
 		custom_label.align_h = GraphicAlign::Centre;
 		custom_label.align_v = GraphicAlign::Middle;
@@ -108,10 +117,29 @@ class ShapeWindow : Window
 		custom_shape_container.width = shape_container.width;
 		custom_shape_container.fit_to_contents(false);
 		
-		add_child(shape_container);
-		add_child(custom_shape_container);
+		window.add_child(custom_shape_container);
 		
-		fit_to_contents(true);
+		window.fit_to_contents(true);
+		script.window_manager.register_element(window);
+		ui.add_child(window);
+	}
+	
+	void show(AdvToolScript@ script, ShapeTool@ tool)
+	{
+		if(@this.script == null)
+		{
+			@this.script = script;
+			@this.tool = tool;
+			
+			create_ui();
+		}
+		
+		window.show();
+	}
+	
+	void hide()
+	{
+		window.hide();
 	}
 	
 	void move_selection(int dx, int dy)
