@@ -1,5 +1,6 @@
 #include '../../../lib/input/vk_from_name.cpp';
-#include '../../../lib/string.cpp';
+#include '../../../lib/string/common.cpp';
+#include '../../../lib/string/parse_int.cpp';
 #include '../../../lib/utils/chr.cpp';
 
 #include 'ConfigState.cpp';

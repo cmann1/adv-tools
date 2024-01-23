@@ -1,7 +1,7 @@
 #include '../../../../lib/drawing/Sprite.cpp';
 #include '../../../../lib/math/line_tests.cpp';
 #include '../../../../lib/props/common.cpp';
-#include '../../../../lib/string.cpp';
+#include '../../../../lib/string/common.cpp';
 
 #include 'PropLineProp.cpp';
 #include 'PropLineRotationMode.cpp';

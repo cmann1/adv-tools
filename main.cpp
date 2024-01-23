@@ -1,6 +1,6 @@
 #include '../../lib/std.cpp';
 #include '../../lib/layer.cpp';
-#include '../../lib/string.cpp';
+#include '../../lib/string/common.cpp';
 #include '../../lib/math/math.cpp';
 #include '../../lib/math/geom.cpp';
 #include '../../lib/input/VK.cpp';
