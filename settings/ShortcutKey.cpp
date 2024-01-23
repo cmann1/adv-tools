@@ -11,14 +11,17 @@ class ShortcutKey
 {
 	
 	AdvToolScript@ script;
+	/* If true this key will still trigger whether or not modifiers not used by this key are down. */
+	private bool allow_other_modifiers;
 	
 	int modifiers = ModifierKey::None;
 	int vk = -1;
 	int priority = 0;
 	
-	ShortcutKey@ init(AdvToolScript@ script)
+	ShortcutKey@ init(AdvToolScript@ script, bool allow_other_modifiers=false)
 	{
 		@this.script = script;
+		this.allow_other_modifiers = allow_other_modifiers;
 		return this;
 	}
 	
@@ -49,8 +52,7 @@ class ShortcutKey
 		vk = name_to_vk(key_str);
 		
 		// The key itself must not be a modifier
-		if(
-			vk <= 0 ||
+		if(vk <= 0 || parts.length > 1 &&
 			(vk >= VK::Shift && vk <= VK::Alt) ||
 			(vk >= VK::LeftShift && vk <= VK::RightMenu))
 		{
@@ -100,14 +102,17 @@ class ShortcutKey
 		if(vk <= 0 || @script == null)
 			return false;
 		
-		if(
-			script.ctrl.down != ((modifiers & ModifierKey::Ctrl) != 0) ||
-			script.shift.down != ((modifiers & ModifierKey::Shift) != 0) ||
-			script.alt.down != ((modifiers & ModifierKey::Alt) != 0)
-		)
-			return false;
-		
-		return true;
+		return
+			check_modifier(script.ctrl) &&
+			check_modifier(script.shift) &&
+			check_modifier(script.alt);
+	}
+	
+	bool check_modifier(EditorKey key)
+	{
+		return
+			key == ((modifiers & key.modifier_key) != 0) ||
+			allow_other_modifiers && (modifiers & key.modifier_key) == 0;
 	}
 	
 	bool check()

@@ -2,6 +2,7 @@ class EditorKey
 {
 	
 	int gvb;
+	int modifier_key;
 	
 	bool down;
 	bool press;
@@ -14,10 +15,11 @@ class EditorKey
 	
 	EditorKey() { }
 	
-	EditorKey(input_api@ input, const int gvb)
+	EditorKey(input_api@ input, const int gvb, const int modifier_key=ModifierKey::None)
 	{
 		@this.input = input;
 		this.gvb = gvb;
+		this.modifier_key = modifier_key;
 	}
 	
 	void update(const float frame)

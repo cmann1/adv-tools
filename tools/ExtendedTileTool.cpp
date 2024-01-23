@@ -4,7 +4,9 @@ class ExtendedTileTool : Tool
 {
 	
 	private ShortcutKey pick_key;
+	private ShortcutKey pick_layer_key;
 	private bool highlight_picked_tile = false;
+	private bool pick_layer = false;
 	
 	private bool has_picked_tile;
 	private uint picked_tile_shape;
@@ -25,14 +27,18 @@ class ExtendedTileTool : Tool
 	
 	void on_init() override
 	{
-		pick_key.init(script);
+		pick_key.init(script, true);
+		pick_layer_key.init(script, true);
 		reload_shortcut_key();
 	}
 	
 	bool reload_shortcut_key() override
 	{
 		pick_key.from_config('KeyPickTile', 'MiddleClick');
+		pick_layer_key.from_config('KeyPickLayerModifier', 'Shift');
+		
 		highlight_picked_tile = script.config.get_bool('HighlightPickedTile');
+		pick_layer = script.config.get_bool('PickTileLayer', pick_layer);
 		
 		return Tool::reload_shortcut_key();
 	}
@@ -61,7 +67,12 @@ class ExtendedTileTool : Tool
 				
 				script.editor.set_tile_sprite(
 					tile.sprite_set(), tile.sprite_tile(), tile.sprite_palette());
-				script.editor.set_selected_layer(layer);
+				
+				if(pick_layer_key.down() ? !pick_layer : pick_layer)
+				{
+					script.editor.set_selected_layer(layer);
+				}
+				
 				script.show_info_popup(
 					'Tile: ' + tile.sprite_set() + '.' + tile.sprite_tile() + '.' + tile.sprite_palette() + '\n' +
 					'Layer: ' + layer,
