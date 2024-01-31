@@ -40,6 +40,7 @@
 #include 'tools/prop_line_tool/PropLineTool.cpp';
 #include 'tools/prop_tool/PropTool.cpp';
 #include 'tools/trigger_tool/ExtendedTriggerTool.cpp';
+#include 'tools/DepthTool.cpp';
 #include 'tools/ExtendedTileTool.cpp';
 #include 'tools/ExtendedPropTool.cpp';
 #include 'tools/HelpTool.cpp';
@@ -454,6 +455,7 @@ class AdvToolScript
 		// Custom
 		add_tool('Tiles',		EdgeBrushTool(this));
 		add_tool('Tiles',		ShapeTool(this));
+		add_tool('Tiles',		DepthTool(this));
 		add_tool('Props',		PropTool(this));
 		add_tool('Props',		PropLineTool(this));
 		
