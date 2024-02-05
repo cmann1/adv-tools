@@ -528,7 +528,7 @@ class AdvToolScript
 		mouse_in_gui = editor.mouse_in_gui();
 		mouse_in_scene = !mouse_in_gui && !ui.is_mouse_over_ui && !ui.is_mouse_active && !space.down;
 		ui_focus = input.is_polling_keyboard();
-		scene_focus = @ui.focus ==  null && !ui_focus;
+		scene_focus = @ui.focus == null && !ui_focus;
 		
 		handle_keyboard();
 		handles.step();
