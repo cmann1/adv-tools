@@ -861,12 +861,12 @@ class AdvToolScript
 	
 	float layer_scale(const uint layer, const uint sub_layer)
 	{
-		return layer_scales[layer][sub_layer];
+		return layer_scales[layer <= 22 ? layer : 22][sub_layer <= 24 ? sub_layer : 24];
 	}
 	
 	float layer_scale(const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer)
 	{
-		return layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer];
+		return layer_scale(from_layer, from_sub_layer) / layer_scale(to_layer, to_sub_layer);
 	}
 	
 	void select_layer(const int layer)
@@ -964,7 +964,7 @@ class AdvToolScript
 		const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer,
 		float &out out_x, float &out out_y)
 	{
-		const float scale = layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer];
+		const float scale = layer_scale(from_layer, from_sub_layer) / layer_scale(to_layer, to_sub_layer);
 		
 		const float dx = (x - view_x) * scale;
 		const float dy = (y - view_y) * scale;
@@ -985,7 +985,7 @@ class AdvToolScript
 		const float size,
 		const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer)
 	{
-		return size * (layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer]);
+		return size * (layer_scale(from_layer, from_sub_layer) / layer_scale(to_layer, to_sub_layer));
 	}
 	
 	void transform_size(
@@ -993,21 +993,21 @@ class AdvToolScript
 		const int from_layer, const int from_sub_layer, const int to_layer, const int to_sub_layer,
 		float &out out_x, float &out out_y)
 	{
-		const float scale = layer_scales[from_layer][from_sub_layer] / layer_scales[to_layer][to_sub_layer];
+		const float scale = layer_scale(from_layer, from_sub_layer) / layer_scale(to_layer, to_sub_layer);
 		out_x = x * scale;
 		out_y = y * scale;
 	}
 	
 	float transform_size(const float size, Mouse@ mouse, const int to_layer, const int to_sub_layer)
 	{
-		return size * (layer_scales[mouse.layer][mouse.sub_layer] / layer_scales[to_layer][to_sub_layer]);
+		return size * (layer_scale(mouse.layer, mouse.sub_layer) / layer_scale(to_layer, to_sub_layer));
 	}
 	
 	void transform_size(
 		const float x, const float y, Mouse@ mouse, const int to_layer, const int to_sub_layer,
 		float &out out_x, float &out out_y)
 	{
-		const float scale = layer_scales[mouse.layer][mouse.sub_layer] / layer_scales[to_layer][to_sub_layer];
+		const float scale = layer_scale(mouse.layer, mouse.sub_layer) / layer_scale(to_layer, to_sub_layer);
 		out_x = x * scale;
 		out_y = y * scale;
 	}
@@ -1225,7 +1225,7 @@ class AdvToolScript
 	
 	bool is_same_layer_scale(const int layer1, const int sub_layer1, const int layer2, const int sub_layer2)
 	{
-		return layer_scales[layer1][sub_layer1] != layer_scales[layer2][sub_layer2];
+		return layer_scale(layer1, sub_layer1) != layer_scale(layer2, sub_layer2);
 	}
 	
 	/**
