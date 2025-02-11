@@ -1,8 +1,3 @@
-float round(float value, float grid)
-{
-    return grid * round(value / grid);
-}
-
 class Point
 {
     float x;
@@ -43,11 +38,11 @@ class Point
         return this / len;
     }
 
-    Point rounded(float grid = 1.0) const
+    Point rounded() const
     {
         return Point(
-            round(x, grid),
-            round(y, grid)
+            round(x),
+            round(y)
         );
     }
 
