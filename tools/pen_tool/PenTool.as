@@ -20,12 +20,6 @@ const uint ACTIVE_COLOUR = 0xff44eeff;
 const uint INACTIVE_COLOUR = 0xffeeeeee;
 const uint QUIET_COLOUR = 0xff888888;
 
-float screen_to_world_scale()
-{
-    camera@ cam = get_active_camera();
-    return 1 / cam.editor_zoom();
-}
-
 const array<Point> SNAP_DIRECTIONS = {
     Point(1, 0),
     Point(2, 1),
@@ -190,9 +184,8 @@ class PenTool : Tool
 
     void draw_impl(const float) override
     {
-        float scale = screen_to_world_scale();
-        float point_radius = POINT_RADIUS * scale;
-        float line_width = LINE_WIDTH * scale;
+        float point_radius = POINT_RADIUS / script.zoom;
+        float line_width = LINE_WIDTH / script.zoom;
 
         if (script.input.key_check_gvb(GVB::Shift))
         {
