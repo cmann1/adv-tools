@@ -5,7 +5,6 @@
 
 #include "../../../../lib/input/ModifierKey.cpp"
 #include "../../../../lib/input/VK.cpp"
-#include "../../../../lib/input/GVB.cpp"
 #include "../../../../lib/std.cpp"
 
 #include "../Tool.cpp"
@@ -45,14 +44,6 @@ class PenTool : Tool
 		init_shortcut_key(VK::W, ModifierKey::Ctrl);
     }
 
-    bool has_focus()
-    {
-        return (
-            !script.input.key_check_gvb(GVB::Space)
-            && !script.editor.mouse_in_gui()
-        );
-    }
-
     void calculate_targets()
     {
         target_closed = false;
@@ -61,7 +52,7 @@ class PenTool : Tool
         Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
 
         // Auto-close
-        if (polygon.size() >= 2 and script.input.key_check_gvb(GVB::Shift))
+        if (polygon.size() >= 2 and script.shift.down)
         {
             target_closed = true;
 
@@ -139,12 +130,12 @@ class PenTool : Tool
     {
         calculate_targets();
 
-        if (!has_focus())
+        if (!script.mouse_in_scene)
         {
             return;
         }
 
-        if (script.input.key_check_pressed_gvb(GVB::LeftClick))
+        if (script.mouse.left_press)
         {
             Point@ next = next_point();
             if (next !is null)
@@ -158,9 +149,9 @@ class PenTool : Tool
             }
         }
 
-        if (script.input.key_check_pressed_gvb(GVB::RightClick))
+        if (script.mouse.right_press)
         {
-            if (script.input.key_check_gvb(GVB::Shift))
+            if (script.shift.down)
             {
                 polygon.clear();
             }
@@ -187,7 +178,7 @@ class PenTool : Tool
         float point_radius = POINT_RADIUS / script.zoom;
         float line_width = LINE_WIDTH / script.zoom;
 
-        if (script.input.key_check_gvb(GVB::Shift))
+        if (script.shift.down)
         {
             // Draw target points and connections
             for (uint i = 0; i < target_points.size(); ++i)
@@ -202,7 +193,7 @@ class PenTool : Tool
             }
         }
 
-        if (has_focus())
+        if (script.mouse_in_scene)
         {
             // Draw next point and connection
             Point@ next = next_point();
