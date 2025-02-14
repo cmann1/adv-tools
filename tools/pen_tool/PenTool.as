@@ -5,17 +5,13 @@
 
 #include "../../../../lib/input/ModifierKey.cpp"
 #include "../../../../lib/input/VK.cpp"
+#include "../../../../lib/input/GVB.cpp"
 #include "../../../../lib/std.cpp"
 
 #include "../Tool.cpp"
 
 #include "point.as"
 #include "polygon.as"
-
-const int GVB_LEFT_CLICK = 2;
-const int GVB_RIGHT_CLICK = 3;
-const int GVB_SPACE = 8;
-const int GVB_SHIFT = 10;
 
 const float POINT_RADIUS = 2.0;
 const float LINE_WIDTH = 2.0;
@@ -58,7 +54,7 @@ class PenTool : Tool
     bool has_focus()
     {
         return (
-            !script.input.key_check_gvb(GVB_SPACE)
+            !script.input.key_check_gvb(GVB::Space)
             && !script.editor.mouse_in_gui()
         );
     }
@@ -71,7 +67,7 @@ class PenTool : Tool
         Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
 
         // Auto-close
-        if (polygon.size() >= 2 and script.input.key_check_gvb(GVB_SHIFT))
+        if (polygon.size() >= 2 and script.input.key_check_gvb(GVB::Shift))
         {
             target_closed = true;
 
@@ -154,7 +150,7 @@ class PenTool : Tool
             return;
         }
 
-        if (script.input.key_check_pressed_gvb(GVB_LEFT_CLICK))
+        if (script.input.key_check_pressed_gvb(GVB::LeftClick))
         {
             Point@ next = next_point();
             if (next !is null)
@@ -168,9 +164,9 @@ class PenTool : Tool
             }
         }
 
-        if (script.input.key_check_pressed_gvb(GVB_RIGHT_CLICK))
+        if (script.input.key_check_pressed_gvb(GVB::RightClick))
         {
-            if (script.input.key_check_gvb(GVB_SHIFT))
+            if (script.input.key_check_gvb(GVB::Shift))
             {
                 polygon.clear();
             }
@@ -198,7 +194,7 @@ class PenTool : Tool
         float point_radius = POINT_RADIUS * scale;
         float line_width = LINE_WIDTH * scale;
 
-        if (script.input.key_check_gvb(GVB_SHIFT))
+        if (script.input.key_check_gvb(GVB::Shift))
         {
             // Draw target points and connections
             for (uint i = 0; i < target_points.size(); ++i)
