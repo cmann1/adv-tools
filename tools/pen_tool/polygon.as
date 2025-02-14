@@ -2,8 +2,6 @@
 
 const bool DEBUG = false;
 
-const float INFINITY = fpFromIEEE(0x7f800000);
-
 const uint TILE_FULL    = 0;
 const uint TILE_BIG_1   = 1;
 const uint TILE_SMALL_1 = 2;
@@ -152,7 +150,7 @@ uint tile_type_from_bitmask(uint mask)
     return TILE_EMPTY;
 }
 
-class Tile
+class BorderTile
 {
     uint mask = 0b11111111;
 
@@ -264,7 +262,7 @@ class Polygon
                 int x = a.x + step * step_dx + edge_data.offset_x;
                 int y = a.y + step * step_dy + edge_data.offset_y;
                 string key = x + "," + y;
-                Tile tile;
+                BorderTile tile;
                 border.get(key, tile);
                 tile.mask &= TILE_BITMASKS[edge_data.tile_type];
                 tile.facing_left  = tile.facing_left  or edge_data.facing_left;
@@ -276,7 +274,7 @@ class Polygon
                     int second_x = x + step_dx / 2;
                     int second_y = y + step_dy / 2;
                     string second_key = second_x + "," + second_y;
-                    Tile second_tile;
+                    BorderTile second_tile;
                     border.get(second_key, second_tile);
                     second_tile.mask &= TILE_BITMASKS[edge_data.second_tile_type];
                     second_tile.facing_left  = second_tile.facing_left  or edge_data.second_facing_left;
@@ -293,7 +291,7 @@ class Polygon
             for (uint i = 0; i < border_keys.size(); ++i)
             {
                 string key = border_keys[i];
-                Tile@ tile = cast<Tile>(border[key]);
+                BorderTile@ tile = cast<BorderTile>(border[key]);
                 puts("" + key + " -> " + tile.mask + " " + tile.facing_left + " " + tile.facing_right);
             }
         }
@@ -303,7 +301,7 @@ class Polygon
         for (uint i = 0; i < border_coordinates.size(); ++i)
         {
             string border_coordinate = border_coordinates[i];
-            Tile@ border_tile = cast<Tile>(border[border_coordinate]);
+            BorderTile@ border_tile = cast<BorderTile>(border[border_coordinate]);
             if (!border_tile.facing_left)
             {
                 continue;
@@ -313,7 +311,7 @@ class Polygon
             float x = parseFloat(split_coordinate[0]);
             float y = parseFloat(split_coordinate[1]);
 
-            Tile@ tile;
+            BorderTile@ tile;
             do
             {
                 border.get(x + "," + y, @tile);
