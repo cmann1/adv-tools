@@ -161,9 +161,10 @@ class BorderTile
 
 class Polygon
 {
-    array<Point> points;
+    private array<Point> points;
+    private bool closed;
 
-    Point& opIndex(int i)
+    const Point& opIndex(int i) const
     {
         return points[i];
     }
@@ -173,15 +174,38 @@ class Polygon
         return points.size();
     }
 
+    bool is_closed() const
+    {
+        return closed;
+    }
+
     void insert_last(Point point)
     {
-        // If the new one is collinear with the last two, move the last point.
-        if (points.size() >= 2 and point.is_collinear_with(points[points.size() - 1], points[points.size() - 2]))
+        if (closed)
+        {
+            return;
+        }
+
+        // If we have a polygon and the new point is identical to the first point, the polygon is now closed.
+        if (points.size() >= 3 and point == points[0])
+        {
+            // Don't add the duplicate point.
+            closed = true;
+        }
+
+        // If the new point is identical to the second-last point, remove the last point.
+        else if (points.size() >= 2 and point == points[points.size() - 2])
+        {
+            points.removeLast();
+        }
+
+        // If the new point is collinear with the last two, move the last point.
+        else if (points.size() >= 2 and point.is_collinear_with(points[points.size() - 1], points[points.size() - 2]))
         {
             points[points.size() - 1] = point;
         }
 
-        // Don't add the point if it is identical to the first point.
+        // If the new point is different to the last point, add the new point.
         else if (points.size() == 0 or point != points[0])
         {
             points.insertLast(point);
@@ -191,11 +215,13 @@ class Polygon
     void remove_last()
     {
         points.removeLast();
+        closed = false;
     }
 
     void clear()
     {
         points.resize(0);
+        closed = false;
     }
 
     float signed_area() const

@@ -2,6 +2,9 @@
 // - Store polygon points as integers to avoid floating point error bugs.
 // - Figure out how I want to draw the target points for the different modes.
 // - Middle click to swap to erase mode.
+// - Integrate with the Tile Window from the Shape Tool.
+// - Use the currently selected layer.
+// - Disallow self-intersecting polygons.
 
 #include "../../../../lib/input/ModifierKey.cpp"
 #include "../../../../lib/input/VK.cpp"
@@ -9,6 +12,7 @@
 
 #include "../Tool.cpp"
 
+#include "PenToolMode.as"
 #include "point.as"
 #include "polygon.as"
 
@@ -19,23 +23,10 @@ const uint ACTIVE_COLOUR = 0xff44eeff;
 const uint INACTIVE_COLOUR = 0xffeeeeee;
 const uint QUIET_COLOUR = 0xff888888;
 
-const array<Point> SNAP_DIRECTIONS = {
-    Point(1, 0),
-    Point(2, 1),
-    Point(1, 1),
-    Point(1, 2),
-    Point(0, 1),
-    Point(-1, 2),
-    Point(-1, 1),
-    Point(-2, 1)
-};
-
 class PenTool : Tool
 {
     Polygon polygon;
-
-    array<Point> target_points;
-    bool target_closed;
+    PenToolMode@ mode;
 
     PenTool(AdvToolScript@ script)
     {
@@ -44,91 +35,31 @@ class PenTool : Tool
 		init_shortcut_key(VK::W, ModifierKey::Ctrl);
     }
 
-    void calculate_targets()
+    void on_select_impl() override
     {
-        target_closed = false;
-        target_points.resize(0);
-
-        Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
-
-        // Auto-close
-        if (polygon.size() >= 2 and script.shift.down)
-        {
-            target_closed = true;
-
-            Point@ first = polygon[0];
-            Point@ last = polygon[polygon.size() - 1];
-
-            for (uint i = 0; i < SNAP_DIRECTIONS.size(); ++i)
-            {
-                for (uint j = 0; j < SNAP_DIRECTIONS.size(); ++j)
-                {
-                    if (i == j)
-                    {
-                        continue;
-                    }
-
-                    // a + s * da = b + t * db
-                    // t = da x (a - b) / da x db
-                    float t = SNAP_DIRECTIONS[i].cross(first - last) / SNAP_DIRECTIONS[i].cross(SNAP_DIRECTIONS[j]);
-                    Point intersection = last + t * SNAP_DIRECTIONS[j];
-                    
-                    // Check that the result lies on a grid point.
-                    Point rounded = intersection.rounded();
-                    if (intersection.is_close_to(rounded))
-                    {
-                        target_points.insertLast(rounded);
-                    }
-                }
-            }
-        }
-
-        // Angle snap
-        else if (polygon.size() >= 1)
-        {
-            Point@ last = polygon[polygon.size() - 1];
-
-            for (uint i = 0; i < SNAP_DIRECTIONS.size(); ++i)
-            {
-                const Point@ delta = SNAP_DIRECTIONS[i];
-                Point offset = mouse - last;
-                float offset_length = offset.dot(delta) / delta.length_sqr();
-                float grid_length = round(offset_length);
-                Point target = (last + grid_length * delta).rounded();
-                target_points.insertLast(target);
-            }
-        }
-
-        // Grid snap
-        else
-        {
-            target_points.insertLast(mouse.rounded());
-        }
+        script.hide_gui_panels(true);
     }
 
-    Point@ next_point()
+    void on_deselect_impl() override
     {
-        Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
-
-        float nearest_distance_sqr = INFINITY;
-        Point@ nearest = null;
-
-        for (uint i = 0; i < target_points.size(); ++i)
-        {
-            float target_distance_sqr = (target_points[i] - mouse).length_sqr();
-            if (target_distance_sqr < nearest_distance_sqr)
-            {
-                nearest_distance_sqr = target_distance_sqr;
-                @nearest = target_points[i];
-            }
-        }
-
-        return nearest;
+        polygon.clear();
+        script.hide_gui_panels(false);
     }
 
     void step_impl() override
     {
-        calculate_targets();
+        if (polygon.size() >= 2 and script.shift.down)
+        {
+            @mode = AutoCloseMode(polygon);
+        }
+        else if (polygon.size() >= 1)
+        {
+            @mode = AngleSnapMode(polygon);
+        }
+        else
+        {
+            @mode = GridSnapMode(polygon);
+        }
 
         if (!script.mouse_in_scene)
         {
@@ -137,15 +68,12 @@ class PenTool : Tool
 
         if (script.mouse.left_press)
         {
-            Point@ next = next_point();
-            if (next !is null)
+            Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
+            mode.add_point(mouse);
+            if (polygon.is_closed())
             {
-                polygon.insert_last(next);
-                if (target_closed or polygon.size() >= 3 and next == polygon[0])
-                {
-                    polygon.fill();
-                    polygon.clear();
-                }
+                polygon.fill();
+                polygon.clear();
             }
         }
 
@@ -162,98 +90,46 @@ class PenTool : Tool
         }
     }
 
-    void on_select_impl() override
-    {
-        script.hide_gui_panels(true);
-    }
-
-    void on_deselect_impl() override
-    {
-        polygon.clear();
-        script.hide_gui_panels(false);
-    }
-
     void draw_impl(const float) override
     {
-        float point_radius = POINT_RADIUS / script.zoom;
-        float line_width = LINE_WIDTH / script.zoom;
-
-        if (script.shift.down)
+        // Draw the preview of the next point(s) to be added.
+        if (mode !is null and script.mouse_in_scene)
         {
-            // Draw target points and connections
-            for (uint i = 0; i < target_points.size(); ++i)
-            {
-                // Point
-                script.g.draw_rectangle_world(
-                    21, 10,
-                    48 * target_points[i].x - point_radius, 48 * target_points[i].y - point_radius,
-                    48 * target_points[i].x + point_radius, 48 * target_points[i].y + point_radius,
-                    0, QUIET_COLOUR
-                );
-            }
+            Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
+            mode.draw(mouse, this);
         }
 
-        if (script.mouse_in_scene)
-        {
-            // Draw next point and connection
-            Point@ next = next_point();
-            if (next !is null)
-            {
-                // Point
-                script.g.draw_rectangle_world(
-                    21, 10,
-                    48 * next.x - point_radius, 48 * next.y - point_radius,
-                    48 * next.x + point_radius, 48 * next.y + point_radius,
-                    0, INACTIVE_COLOUR
-                );
-
-                // Connecting line
-                if (polygon.size() > 0)
-                {
-                    Point@ last = polygon[polygon.size() - 1];
-                    script.g.draw_line_world(
-                        21, 10,
-                        48 * last.x, 48 * last.y,
-                        48 * next.x, 48 * next.y,
-                        line_width, INACTIVE_COLOUR
-                    );
-
-                    // Closing line
-                    if (target_closed)
-                    {
-                        Point@ first = polygon[0];
-                        script.g.draw_line_world(
-                            21, 10,
-                            48 * next.x, 48 * next.y,
-                            48 * first.x, 48 * first.y,
-                            line_width, INACTIVE_COLOUR
-                        );
-                    }
-                }
-            }
-        }
-
-        // Draw existing points with connections
+        // Draw the existing partial polygon.
         for (uint i = 0; i < polygon.size(); ++i)
         {
-            // Point
-            script.g.draw_rectangle_world(
-                21, 10,
-                48 * polygon[i].x - point_radius, 48 * polygon[i].y - point_radius,
-                48 * polygon[i].x + point_radius, 48 * polygon[i].y + point_radius,
-                0, ACTIVE_COLOUR
-            );
+            draw_point(21, 10, polygon[i], ACTIVE_COLOUR);
 
-            // Connecting line
             if (i > 0)
             {
-                script.g.draw_line_world(
-                    21, 10,
-                    48 * polygon[i - 1].x, 48 * polygon[i - 1].y,
-                    48 * polygon[i].x, 48 * polygon[i].y,
-                    line_width, ACTIVE_COLOUR
-                );
+                draw_line(21, 10, polygon[i - 1], polygon[i], ACTIVE_COLOUR);
             }
         }
+    }
+
+    void draw_point(int layer, int sub_layer, const Point& point, uint32 colour) const
+    {
+        float scaled_radius = POINT_RADIUS / script.zoom;
+        script.g.draw_rectangle_world(
+            layer, sub_layer,
+            48 * point.x - scaled_radius, 48 * point.y - scaled_radius,
+            48 * point.x + scaled_radius, 48 * point.y + scaled_radius,
+            0, colour
+        );
+    }
+
+    void draw_line(int layer, int sub_layer, const Point& src, const Point& dst, uint32 colour) const
+    {
+        float scaled_width = LINE_WIDTH / script.zoom;
+        script.g.draw_line_world(
+            layer, sub_layer,
+            48 * src.x, 48 * src.y,
+            48 * dst.x, 48 * dst.y,
+            scaled_width, colour
+        );
     }
 }
