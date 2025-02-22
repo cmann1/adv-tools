@@ -1,6 +1,5 @@
 // TODO:
 // - Store polygon points as integers to avoid floating point error bugs.
-// - Figure out how I want to draw the target points for the different modes.
 // - Middle click to swap to erase mode.
 // - Integrate with the Tile Window from the Shape Tool.
 // - Use the currently selected layer.
@@ -21,7 +20,7 @@ const float LINE_WIDTH = 2.0;
 
 const uint ACTIVE_COLOUR = 0xff44eeff;
 const uint INACTIVE_COLOUR = 0xffeeeeee;
-const uint QUIET_COLOUR = 0xff888888;
+const uint QUIET_COLOUR = 0x44888888;
 
 class PenTool : Tool
 {

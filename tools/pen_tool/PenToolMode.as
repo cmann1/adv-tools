@@ -30,6 +30,17 @@ const Point@ closest_point(const array<Point>& target_points, const Point& point
     return closest;
 }
 
+void draw_snap_lines(PenTool@ tool, const Point& point)
+{
+    float length = 1000 / tool.script.zoom;
+    for (uint i = 0; i < SNAP_DIRECTIONS.size(); ++i)
+    {
+        Point src = point + length * SNAP_DIRECTIONS[i];
+        Point dst = point - length * SNAP_DIRECTIONS[i];
+        tool.draw_line(21, 10, src, dst, QUIET_COLOUR);
+    }
+}
+
 /// Base class for modes that the pen tool can be in.
 abstract class PenToolMode
 {
@@ -67,7 +78,7 @@ abstract class PenToolMode
         {
             tool.draw_point(21, 10, next, INACTIVE_COLOUR);
 
-            if (polygon.size() > 0)
+            if (polygon.size() >= 1)
             {
                 tool.draw_line(21, 10, polygon[polygon.size() - 1], next, INACTIVE_COLOUR);
             }
@@ -103,11 +114,18 @@ class AutoCloseMode : PenToolMode
 
     void draw(const Point& mouse, PenTool@ tool) const override
     {
+        // Draw the angle snap guides.
+        if (polygon.size() >= 1)
+        {
+            draw_snap_lines(tool, polygon[0]);
+            draw_snap_lines(tool, polygon[polygon.size() - 1]);
+        }
+
         // Draw the available options.
         array<Point>@ options = calculate_options(mouse);
         for (uint i = 0; i < options.size(); ++i)
         {
-            tool.draw_point(21, 10, options[i], QUIET_COLOUR);
+            tool.draw_point(21, 10, options[i], INACTIVE_COLOUR);
         }
 
         // Draw the next point and its connections to the polygon.
@@ -116,7 +134,7 @@ class AutoCloseMode : PenToolMode
         {
             tool.draw_point(21, 10, next, INACTIVE_COLOUR);
 
-            if (polygon.size() > 0)
+            if (polygon.size() >= 1)
             {
                 // Connecting line
                 tool.draw_line(21, 10, polygon[polygon.size() - 1], next, INACTIVE_COLOUR);
@@ -196,6 +214,17 @@ class AngleSnapMode : PenToolMode
         }
 
         return closest_point(options, mouse);
+    }
+
+    void draw(const Point& mouse, PenTool@ tool) const
+    {
+        // Draw the angle snap guide.
+        if (polygon.size() >= 1)
+        {
+            draw_snap_lines(tool, polygon[polygon.size() - 1]);
+        }
+
+        PenToolMode::draw(mouse, tool);
     }
 }
 
