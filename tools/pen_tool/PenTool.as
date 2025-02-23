@@ -1,7 +1,6 @@
 // TODO:
 // - Store polygon points as integers to avoid floating point error bugs.
 // - Middle click to swap to erase mode.
-// - Integrate with the Tile Window from the Shape Tool.
 // - Copy the tile picking functionality from the Shape Tool.
 // - Disallow self-intersecting polygons.
 
@@ -9,6 +8,7 @@
 #include "../../../../lib/input/VK.cpp"
 #include "../../../../lib/std.cpp"
 
+#include "../shape_tool/TileWindow.cpp"
 #include "../Tool.cpp"
 
 #include "PenToolMode.as"
@@ -26,6 +26,7 @@ class PenTool : Tool
 {
     Polygon polygon;
     PenToolMode@ mode;
+    TileWindow tile_window;
 
     PenTool(AdvToolScript@ script)
     {
@@ -36,12 +37,17 @@ class PenTool : Tool
 
     void on_select_impl() override
     {
+		tile_window.show(script);
+
         script.hide_gui_panels(true);
     }
 
     void on_deselect_impl() override
     {
         polygon.clear();
+
+		tile_window.hide();
+
         script.hide_gui_panels(false);
     }
 
@@ -73,7 +79,7 @@ class PenTool : Tool
             mode.add_point(mouse);
             if (polygon.is_closed())
             {
-                polygon.fill(script.layer);
+                polygon.fill(script.layer, tile_window.sprite_set, tile_window.sprite_tile, tile_window.sprite_palette);
                 polygon.clear();
             }
         }

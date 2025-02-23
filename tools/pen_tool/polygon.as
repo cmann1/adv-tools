@@ -240,7 +240,7 @@ class Polygon
         return signed_area() > 0.0;
     }
 
-    void fill(int layer)
+    void fill(int layer, int sprite_set, int sprite_tile, int sprite_palette)
     {
         scene@ g = get_scene();
 
@@ -373,7 +373,7 @@ class Polygon
                 // Do nothing if the tile has been eroded away completely.
                 if (type != TILE_EMPTY)
                 {
-                    g.set_tile(x, y, layer, true, type, 1, 1, 1);
+                    g.set_tile(x, y, layer, true, type, sprite_set, sprite_tile, sprite_palette);
                 }
 
                 x += 1;
