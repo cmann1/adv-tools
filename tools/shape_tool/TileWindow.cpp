@@ -114,7 +114,6 @@ class TileWindow
 {
 	
 	private AdvToolScript@ script;
-	private ShapeTool@ tool;
 	
 	private Window@ window;
 	private Container@ tile_container;
@@ -125,11 +124,7 @@ class TileWindow
 	
 	int sprite_set { get const { return _sprite_set; } }
 	int sprite_tile { get const { return _sprite_tile; } }
-	int sprite_palette
-	{
-		get const { return palette_menu.sprite_palette; }
-		set { palette_menu.sprite_palette = value; }
-	}
+	int sprite_palette { get const { return palette_menu.sprite_palette; } }
 	
 	private void create_ui()
 	{
@@ -191,21 +186,28 @@ class TileWindow
 		ui.add_child(window);
 	}
 	
-	void show(AdvToolScript@ script, ShapeTool@ tool)
+	void show(AdvToolScript@ script)
 	{
 		if(@this.script == null)
 		{
 			@this.script = script;
-			@this.tool = tool;
 			
 			create_ui();
 		}
+			
+		// Load the global state into the tool state.
+		int cur_sprite_set, cur_sprite_tile, cur_sprite_palette;
+		script.editor.get_tile_sprite(cur_sprite_set, cur_sprite_tile, cur_sprite_palette);
+		select_tile(cur_sprite_set, cur_sprite_tile, cur_sprite_palette);
 		
 		window.show();
 	}
 	
 	void hide()
 	{
+		// Write the tool state to the global state.
+		script.editor.set_tile_sprite(sprite_set, sprite_tile, sprite_palette);
+
 		window.hide();
 	}
 	
@@ -220,6 +222,12 @@ class TileWindow
 		
 		int index = get_tile_index(sprite_set, sprite_tile);
 		cast<Button>(tile_container.get_child(index)).selected = true;
+	}
+
+	void select_tile(int sprite_set, int sprite_tile, int sprite_palette)
+	{
+		select_tile(sprite_set, sprite_tile);
+		palette_menu.sprite_palette = sprite_palette;
 	}
 	
 	// ///////////////////////////////////////////

@@ -102,8 +102,7 @@ class ShapeTool : Tool
 		if (@tile != null)
 		{
 			script.editor.set_selected_layer(layer);
-			tile_window.select_tile(tile.sprite_set(), tile.sprite_tile());
-			tile_window.sprite_palette = tile.sprite_palette();
+			tile_window.select_tile(tile.sprite_set(), tile.sprite_tile(), tile.sprite_palette());
 			shape_window.tile_shape = tile.type();
 		}
 	}
@@ -147,8 +146,8 @@ class ShapeTool : Tool
 	
 	protected void on_select_impl() override
 	{
-		tile_window.show(script, this);
-		shape_window.show(script, this);
+		tile_window.show(script);
+		shape_window.show(script);
 		
 		script.hide_gui_panels(true);
 	}

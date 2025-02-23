@@ -13,7 +13,6 @@ class ShapeWindow
 {
 	
 	private AdvToolScript@ script;
-	private ShapeTool@ tool;
 	
 	private Window@ window;
 	private Container@ shape_container;
@@ -109,12 +108,11 @@ class ShapeWindow
 		ui.add_child(window);
 	}
 	
-	void show(AdvToolScript@ script, ShapeTool@ tool)
+	void show(AdvToolScript@ script)
 	{
 		if(@this.script == null)
 		{
 			@this.script = script;
-			@this.tool = tool;
 			
 			create_ui();
 		}
