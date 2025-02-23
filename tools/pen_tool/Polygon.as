@@ -24,15 +24,15 @@ const uint TILE_HALF_A  = 17;
 const uint TILE_HALF_B  = 18;
 const uint TILE_HALF_C  = 19;
 const uint TILE_HALF_D  = 20;
-const uint TILE_EMPTY   = -1;
+const uint TILE_EMPTY   = MAX_UINT;
 
-int gcd(int a, int b)
+uint gcd(int a_, int b_)
 {
-    a = abs(a);
-    b = abs(b);
+    uint a = a_ > 0 ? a_ : -a_;
+    uint b = b_ > 0 ? b_ : -b_;
     while (b > 0)
     {
-        int r = a % b;
+        uint r = a % b;
         a = b;
         b = r;
     }
@@ -259,7 +259,7 @@ class Polygon
         }
 
         // Keep track of the furthest right point, to use as a failsafe when filling tiles.
-        int max_x = -INFINITY;
+        int max_x = MIN_INT;
 
         // Follow the polygon to calculate the tiles along the border.
         dictionary border;  // "x,y" -> Tile
@@ -275,7 +275,7 @@ class Polygon
             
             int dx = b.x - a.x;
             int dy = b.y - a.y;
-            int steps = gcd(dx, dy);
+            uint steps = gcd(dx, dy);
             if (steps == 0)
                 continue;
             int step_dx = dx / steps;
