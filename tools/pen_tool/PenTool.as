@@ -1,13 +1,14 @@
 // TODO:
 // - Store polygon points as integers to avoid floating point error bugs.
 // - Middle click to swap to erase mode.
-// - Copy the tile picking functionality from the Shape Tool.
 // - Disallow self-intersecting polygons.
+// - Add an icon!
 
 #include "../../../../lib/input/ModifierKey.cpp"
 #include "../../../../lib/input/VK.cpp"
 #include "../../../../lib/std.cpp"
 
+#include "../../settings/ShortcutKey.cpp"
 #include "../shape_tool/TileWindow.cpp"
 #include "../Tool.cpp"
 
@@ -28,12 +29,26 @@ class PenTool : Tool
     PenToolMode@ mode;
     TileWindow tile_window;
 
+	private ShortcutKey pick_key;
+
     PenTool(AdvToolScript@ script)
     {
 		super(script, 'Tiles', 'Pen Tool');
 		
 		init_shortcut_key(VK::W, ModifierKey::Ctrl);
     }
+	
+	void on_init() override
+	{
+		pick_key.init(script);
+		reload_shortcut_key();
+	}
+	
+	bool reload_shortcut_key() override
+	{
+		pick_key.from_config('KeyPickTile', 'MiddleClick');
+		return Tool::reload_shortcut_key();
+	}
 
     void on_select_impl() override
     {
@@ -71,6 +86,12 @@ class PenTool : Tool
         if (!script.mouse_in_scene)
         {
             return;
+        }
+
+        if(pick_key.down())
+        {
+            pick_key.clear_gvb();
+            pick_tile_at_mouse();
         }
 
         if (script.mouse.left_press)
@@ -115,6 +136,17 @@ class PenTool : Tool
             {
                 draw_line( polygon[i - 1], polygon[i], ACTIVE_COLOUR);
             }
+        }
+    }
+
+    private void pick_tile_at_mouse()
+    {
+        int _, layer;
+        tileinfo@ tile = script.pick_tile(_, _, layer);
+        if (@tile != null)
+        {
+            script.editor.set_selected_layer(layer);
+            tile_window.select_tile(tile.sprite_set(), tile.sprite_tile(), tile.sprite_palette());
         }
     }
 
