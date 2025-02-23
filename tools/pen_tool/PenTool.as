@@ -6,6 +6,7 @@
 #include "../../../../lib/embed_utils.cpp"
 #include "../../../../lib/input/ModifierKey.cpp"
 #include "../../../../lib/input/VK.cpp"
+#include "../../../../lib/math/Vec2.cpp"
 #include "../../../../lib/std.cpp"
 
 #include "../../settings/ShortcutKey.cpp"
@@ -15,7 +16,6 @@
 #include "../Tool.cpp"
 
 #include "PenToolMode.as"
-#include "point.as"
 #include "polygon.as"
 
 const string EMBED_spr_icon_pen_tool = SPRITES_BASE + 'icon_pen_tool.png';
@@ -111,7 +111,7 @@ class PenTool : Tool
 
         if (script.mouse.left_press)
         {
-            Point mouse(script.input.mouse_x_world(script.layer) / 48.0, script.input.mouse_y_world(script.layer) / 48.0);
+            Vec2 mouse(script.input.mouse_x_world(script.layer) / 48.0, script.input.mouse_y_world(script.layer) / 48.0);
             mode.add_point(mouse);
             if (polygon.is_closed())
             {
@@ -138,7 +138,7 @@ class PenTool : Tool
         // Draw the preview of the next point(s) to be added.
         if (mode !is null and script.mouse_in_scene)
         {
-            Point mouse(script.input.mouse_x_world(script.layer) / 48.0, script.input.mouse_y_world(script.layer) / 48.0);
+            Vec2 mouse(script.input.mouse_x_world(script.layer) / 48.0, script.input.mouse_y_world(script.layer) / 48.0);
             mode.draw(mouse, this);
         }
 
@@ -165,7 +165,7 @@ class PenTool : Tool
         }
     }
 
-    void draw_point(const Point& point, uint32 colour) const
+    void draw_point(const Vec2& point, uint32 colour) const
     {
         float scaled_radius = POINT_RADIUS / script.zoom;
         float scaled_x, scaled_y;
@@ -178,7 +178,7 @@ class PenTool : Tool
         );
     }
 
-    void draw_line(const Point& src, const Point& dst, uint32 colour) const
+    void draw_line(const Vec2& src, const Vec2& dst, uint32 colour) const
     {
         float scaled_width = LINE_WIDTH / script.zoom;
         float scaled_src_x, scaled_src_y, scaled_dst_x, scaled_dst_y;
