@@ -2,7 +2,7 @@
 // - Store polygon points as integers to avoid floating point error bugs.
 // - Middle click to swap to erase mode.
 // - Integrate with the Tile Window from the Shape Tool.
-// - Use the currently selected layer.
+// - Copy the tile picking functionality from the Shape Tool.
 // - Disallow self-intersecting polygons.
 
 #include "../../../../lib/input/ModifierKey.cpp"
@@ -47,6 +47,8 @@ class PenTool : Tool
 
     void step_impl() override
     {
+        script.scroll_layer(true, false, true);
+
         if (polygon.size() >= 2 and script.shift.down)
         {
             @mode = AutoCloseMode(polygon);
@@ -67,11 +69,11 @@ class PenTool : Tool
 
         if (script.mouse.left_press)
         {
-            Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
+            Point mouse(script.input.mouse_x_world(script.layer) / 48.0, script.input.mouse_y_world(script.layer) / 48.0);
             mode.add_point(mouse);
             if (polygon.is_closed())
             {
-                polygon.fill();
+                polygon.fill(script.layer);
                 polygon.clear();
             }
         }
@@ -94,40 +96,45 @@ class PenTool : Tool
         // Draw the preview of the next point(s) to be added.
         if (mode !is null and script.mouse_in_scene)
         {
-            Point mouse(script.input.mouse_x_world(19) / 48.0, script.input.mouse_y_world(19) / 48.0);
+            Point mouse(script.input.mouse_x_world(script.layer) / 48.0, script.input.mouse_y_world(script.layer) / 48.0);
             mode.draw(mouse, this);
         }
 
         // Draw the existing partial polygon.
         for (uint i = 0; i < polygon.size(); ++i)
         {
-            draw_point(21, 10, polygon[i], ACTIVE_COLOUR);
+            draw_point(polygon[i], ACTIVE_COLOUR);
 
             if (i > 0)
             {
-                draw_line(21, 10, polygon[i - 1], polygon[i], ACTIVE_COLOUR);
+                draw_line( polygon[i - 1], polygon[i], ACTIVE_COLOUR);
             }
         }
     }
 
-    void draw_point(int layer, int sub_layer, const Point& point, uint32 colour) const
+    void draw_point(const Point& point, uint32 colour) const
     {
         float scaled_radius = POINT_RADIUS / script.zoom;
+        float scaled_x, scaled_y;
+        script.transform(48 * point.x, 48 * point.y, script.layer, 10, 22, 22, scaled_x, scaled_y);
         script.g.draw_rectangle_world(
-            layer, sub_layer,
-            48 * point.x - scaled_radius, 48 * point.y - scaled_radius,
-            48 * point.x + scaled_radius, 48 * point.y + scaled_radius,
+            22, 22,
+            scaled_x - scaled_radius, scaled_y - scaled_radius,
+            scaled_x + scaled_radius, scaled_y + scaled_radius,
             0, colour
         );
     }
 
-    void draw_line(int layer, int sub_layer, const Point& src, const Point& dst, uint32 colour) const
+    void draw_line(const Point& src, const Point& dst, uint32 colour) const
     {
         float scaled_width = LINE_WIDTH / script.zoom;
+        float scaled_src_x, scaled_src_y, scaled_dst_x, scaled_dst_y;
+        script.transform(48 * src.x, 48 * src.y, script.layer, 10, 22, 22, scaled_src_x, scaled_src_y);
+        script.transform(48 * dst.x, 48 * dst.y, script.layer, 10, 22, 22, scaled_dst_x, scaled_dst_y);
         script.g.draw_line_world(
-            layer, sub_layer,
-            48 * src.x, 48 * src.y,
-            48 * dst.x, 48 * dst.y,
+            22, 22,
+            scaled_src_x, scaled_src_y,
+            scaled_dst_x, scaled_dst_y,
             scaled_width, colour
         );
     }
