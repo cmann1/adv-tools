@@ -1,5 +1,4 @@
 // TODO:
-// - Store polygon points as integers to avoid floating point error bugs.
 // - Erase mode. Maybe hold Ctrl when closing shape and turn outline red?
 // - Disallow self-intersecting polygons.
 
@@ -16,7 +15,7 @@
 #include "../Tool.cpp"
 
 #include "PenToolMode.as"
-#include "polygon.as"
+#include "Polygon.as"
 
 const string EMBED_spr_icon_pen_tool = SPRITES_BASE + 'icon_pen_tool.png';
 
@@ -149,7 +148,7 @@ class PenTool : Tool
 
             if (i > 0)
             {
-                draw_line( polygon[i - 1], polygon[i], ACTIVE_COLOUR);
+                draw_line(polygon[i - 1], polygon[i], ACTIVE_COLOUR);
             }
         }
     }
@@ -165,7 +164,7 @@ class PenTool : Tool
         }
     }
 
-    void draw_point(const Vec2& point, uint32 colour) const
+    void draw_point(const IntVec2& point, uint32 colour) const
     {
         float scaled_radius = POINT_RADIUS / script.zoom;
         float scaled_x, scaled_y;
@@ -178,7 +177,7 @@ class PenTool : Tool
         );
     }
 
-    void draw_line(const Vec2& src, const Vec2& dst, uint32 colour) const
+    void draw_line(const IntVec2& src, const IntVec2& dst, uint32 colour) const
     {
         float scaled_width = LINE_WIDTH / script.zoom;
         float scaled_src_x, scaled_src_y, scaled_dst_x, scaled_dst_y;
