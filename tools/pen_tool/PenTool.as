@@ -1,20 +1,24 @@
 // TODO:
 // - Store polygon points as integers to avoid floating point error bugs.
-// - Middle click to swap to erase mode.
+// - Erase mode. Maybe hold Ctrl when closing shape and turn outline red?
 // - Disallow self-intersecting polygons.
-// - Add an icon!
 
+#include "../../../../lib/embed_utils.cpp"
 #include "../../../../lib/input/ModifierKey.cpp"
 #include "../../../../lib/input/VK.cpp"
 #include "../../../../lib/std.cpp"
 
 #include "../../settings/ShortcutKey.cpp"
+#include "../../ToolGroup.cpp"
 #include "../shape_tool/TileWindow.cpp"
+#include "../shape_tool/TileEmbeds.cpp"
 #include "../Tool.cpp"
 
 #include "PenToolMode.as"
 #include "point.as"
 #include "polygon.as"
+
+const string EMBED_spr_icon_pen_tool = SPRITES_BASE + 'icon_pen_tool.png';
 
 const float POINT_RADIUS = 2.0;
 const float LINE_WIDTH = 2.0;
@@ -38,6 +42,11 @@ class PenTool : Tool
 		init_shortcut_key(VK::W, ModifierKey::Ctrl);
     }
 	
+	void create(ToolGroup@ group) override
+	{
+		set_icon(SPRITE_SET, 'icon_pen_tool', 60, 60);
+	}
+	
 	void on_init() override
 	{
 		pick_key.init(script);
@@ -48,6 +57,12 @@ class PenTool : Tool
 	{
 		pick_key.from_config('KeyPickTile', 'MiddleClick');
 		return Tool::reload_shortcut_key();
+	}
+
+	void build_sprites(message@ msg) override
+	{
+		build_sprite(msg, 'icon_pen_tool');
+		build_tile_sprites(msg);
 	}
 
     void on_select_impl() override
