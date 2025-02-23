@@ -1,4 +1,4 @@
-#include "../../../../lib/math/Vec2.cpp"
+#include "../../../../lib/math/IntVec2.cpp"
 #include "../../../../lib/std.cpp"
 
 const bool DEBUG = false;
@@ -162,10 +162,10 @@ class BorderTile
 
 class Polygon
 {
-    private array<Vec2> points;
+    private array<IntVec2> points;
     private bool closed;
 
-    const Vec2& opIndex(int i) const
+    const IntVec2& opIndex(int i) const
     {
         return points[i];
     }
@@ -180,7 +180,7 @@ class Polygon
         return closed;
     }
 
-    void insert_last(Vec2 point)
+    void insert_last(const IntVec2& point)
     {
         if (closed)
         {
@@ -225,20 +225,20 @@ class Polygon
         closed = false;
     }
 
-    float signed_area() const
+    int twice_signed_area() const
     {
         // Shoelace formula.
-        float twice_area = 0;
+        int twice_area = 0;
         for (uint i = 0; i < points.size(); ++i)
         {
             twice_area += cross_product_z(points[i], points[(i + 1) % points.size()]);
         }
-        return twice_area / 2.0;
+        return twice_area;
     }
 
     bool is_clockwise() const
     {
-        return signed_area() > 0.0;
+        return twice_signed_area() > 0;
     }
 
     void fill(int layer, int sprite_set, int sprite_tile, int sprite_palette)
@@ -265,8 +265,8 @@ class Polygon
         dictionary border;  // "x,y" -> Tile
         for (uint i = 0; i < points.size(); ++i)
         {
-            Vec2@ a = points[i];
-            Vec2@ b = points[(i + 1) % points.size()];
+            IntVec2@ a = points[i];
+            IntVec2@ b = points[(i + 1) % points.size()];
             
             if (a.x > max_x)
             {
@@ -335,8 +335,8 @@ class Polygon
             }
 
             array<string> split_coordinate = border_coordinate.split(",");
-            float x = parseFloat(split_coordinate[0]);
-            float y = parseFloat(split_coordinate[1]);
+            int x = parseInt(split_coordinate[0]);
+            int y = parseInt(split_coordinate[1]);
 
             BorderTile@ tile;
             do
