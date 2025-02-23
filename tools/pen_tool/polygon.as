@@ -240,7 +240,7 @@ class Polygon
         return signed_area() > 0.0;
     }
 
-    void fill()
+    void fill(int layer)
     {
         scene@ g = get_scene();
 
@@ -349,7 +349,7 @@ class Polygon
                     uint mask = tile.mask;
 
                     // Merge the new tile shape with the existing tile shape.
-                    tileinfo@ existing_tile = g.get_tile(x, y);
+                    tileinfo@ existing_tile = g.get_tile(x, y, layer);
                     if (existing_tile.solid())
                     {
                         uint existing_mask = TILE_BITMASKS[existing_tile.type()];
@@ -373,7 +373,7 @@ class Polygon
                 // Do nothing if the tile has been eroded away completely.
                 if (type != TILE_EMPTY)
                 {
-                    g.set_tile(x, y, 19, true, type, 1, 1, 1);
+                    g.set_tile(x, y, layer, true, type, 1, 1, 1);
                 }
 
                 x += 1;

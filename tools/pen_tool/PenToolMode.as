@@ -37,7 +37,7 @@ void draw_snap_lines(PenTool@ tool, const Point& point)
     {
         Point src = point + length * SNAP_DIRECTIONS[i];
         Point dst = point - length * SNAP_DIRECTIONS[i];
-        tool.draw_line(21, 10, src, dst, QUIET_COLOUR);
+        tool.draw_line(src, dst, QUIET_COLOUR);
     }
 }
 
@@ -76,11 +76,11 @@ abstract class PenToolMode
         const Point@ next = next_point(mouse);
         if (next !is null)
         {
-            tool.draw_point(21, 10, next, INACTIVE_COLOUR);
+            tool.draw_point(next, INACTIVE_COLOUR);
 
             if (polygon.size() >= 1)
             {
-                tool.draw_line(21, 10, polygon[polygon.size() - 1], next, INACTIVE_COLOUR);
+                tool.draw_line(polygon[polygon.size() - 1], next, INACTIVE_COLOUR);
             }
         }
     }
@@ -125,22 +125,22 @@ class AutoCloseMode : PenToolMode
         array<Point>@ options = calculate_options(mouse);
         for (uint i = 0; i < options.size(); ++i)
         {
-            tool.draw_point(21, 10, options[i], INACTIVE_COLOUR);
+            tool.draw_point(options[i], INACTIVE_COLOUR);
         }
 
         // Draw the next point and its connections to the polygon.
         const Point@ next = next_point(mouse);
         if (next !is null)
         {
-            tool.draw_point(21, 10, next, INACTIVE_COLOUR);
+            tool.draw_point(next, INACTIVE_COLOUR);
 
             if (polygon.size() >= 1)
             {
                 // Connecting line
-                tool.draw_line(21, 10, polygon[polygon.size() - 1], next, INACTIVE_COLOUR);
+                tool.draw_line(polygon[polygon.size() - 1], next, INACTIVE_COLOUR);
 
                 // Closing line
-                tool.draw_line(21, 10, next, polygon[0], INACTIVE_COLOUR);
+                tool.draw_line(next, polygon[0], INACTIVE_COLOUR);
             }
         }
     }
