@@ -1,4 +1,5 @@
-#include "point.as"
+#include "../../../../lib/math/Vec2.cpp"
+#include "../../../../lib/std.cpp"
 
 const bool DEBUG = false;
 
@@ -161,10 +162,10 @@ class BorderTile
 
 class Polygon
 {
-    private array<Point> points;
+    private array<Vec2> points;
     private bool closed;
 
-    const Point& opIndex(int i) const
+    const Vec2& opIndex(int i) const
     {
         return points[i];
     }
@@ -179,7 +180,7 @@ class Polygon
         return closed;
     }
 
-    void insert_last(Point point)
+    void insert_last(Vec2 point)
     {
         if (closed)
         {
@@ -200,7 +201,7 @@ class Polygon
         }
 
         // If the new point is collinear with the last two, move the last point.
-        else if (points.size() >= 2 and point.is_collinear_with(points[points.size() - 1], points[points.size() - 2]))
+        else if (points.size() >= 2 and orientation(point, points[points.size() - 1], points[points.size() - 2]) == 0)
         {
             points[points.size() - 1] = point;
         }
@@ -230,7 +231,7 @@ class Polygon
         float twice_area = 0;
         for (uint i = 0; i < points.size(); ++i)
         {
-            twice_area += points[i].cross(points[(i + 1) % points.size()]);
+            twice_area += cross_product_z(points[i], points[(i + 1) % points.size()]);
         }
         return twice_area / 2.0;
     }
@@ -246,7 +247,7 @@ class Polygon
 
         // If the last point is collinear with the first two, remove the first point.
         // This prevents the polygon from doubling back on itself.
-        if (points.size() >= 3 and points[points.size() - 1].is_collinear_with(points[0], points[1]))
+        if (points.size() >= 3 and orientation(points[points.size() - 1], points[0], points[1]) == 0)
         {
             points.removeAt(0);
         }
@@ -264,8 +265,8 @@ class Polygon
         dictionary border;  // "x,y" -> Tile
         for (uint i = 0; i < points.size(); ++i)
         {
-            Point@ a = points[i];
-            Point@ b = points[(i + 1) % points.size()];
+            Vec2@ a = points[i];
+            Vec2@ b = points[(i + 1) % points.size()];
             
             if (a.x > max_x)
             {

@@ -1,25 +1,27 @@
-#include "point.as"
+#include "../../../../lib/math/Vec2.cpp"
+#include "../../../../lib/std.cpp"
+
 #include "polygon.as"
 
-const array<Point> SNAP_DIRECTIONS = {
-    Point(1, 0),
-    Point(2, 1),
-    Point(1, 1),
-    Point(1, 2),
-    Point(0, 1),
-    Point(-1, 2),
-    Point(-1, 1),
-    Point(-2, 1)
+const array<Vec2> SNAP_DIRECTIONS = {
+    Vec2(1, 0),
+    Vec2(2, 1),
+    Vec2(1, 1),
+    Vec2(1, 2),
+    Vec2(0, 1),
+    Vec2(-1, 2),
+    Vec2(-1, 1),
+    Vec2(-2, 1)
 };
 
-const Point@ closest_point(const array<Point>& target_points, const Point& point)
+const Vec2@ closest_point(const array<Vec2>& target_points, const Vec2& point)
 {
     float closest_distance_sqr = INFINITY;
-    const Point@ closest = null;
+    const Vec2@ closest = null;
 
     for (uint i = 0; i < target_points.size(); ++i)
     {
-        float target_distance_sqr = (target_points[i] - point).length_sqr();
+        float target_distance_sqr = (target_points[i] - point).sqr_magnitude();
         if (target_distance_sqr < closest_distance_sqr)
         {
             closest_distance_sqr = target_distance_sqr;
@@ -30,13 +32,13 @@ const Point@ closest_point(const array<Point>& target_points, const Point& point
     return closest;
 }
 
-void draw_snap_lines(PenTool@ tool, const Point& point)
+void draw_snap_lines(PenTool@ tool, const Vec2& point)
 {
     float length = 1000 / tool.script.zoom;
     for (uint i = 0; i < SNAP_DIRECTIONS.size(); ++i)
     {
-        Point src = point + length * SNAP_DIRECTIONS[i];
-        Point dst = point - length * SNAP_DIRECTIONS[i];
+        Vec2 src = point + length * SNAP_DIRECTIONS[i];
+        Vec2 dst = point - length * SNAP_DIRECTIONS[i];
         tool.draw_line(src, dst, QUIET_COLOUR);
     }
 }
@@ -46,7 +48,7 @@ abstract class PenToolMode
 {
     protected Polygon@ polygon;
 
-    private array<Point>@ target_points = null;
+    private array<Vec2>@ target_points = null;
 
     PenToolMode(Polygon@ polygon)
     {
@@ -54,9 +56,9 @@ abstract class PenToolMode
     }
 
     /// Add the next point to the polygon.
-    void add_point(const Point& mouse)
+    void add_point(const Vec2& mouse)
     {
-        const Point@ next = next_point(mouse);
+        const Vec2@ next = next_point(mouse);
         if (next !is null)
         {
             polygon.insert_last(next);
@@ -64,16 +66,16 @@ abstract class PenToolMode
     }
 
     /// Return the point that would be added next.
-    const Point@ next_point(const Point& mouse) const
+    const Vec2@ next_point(const Vec2& mouse) const
     {
         return null;
     }
 
     /// Draw a visualisation of the next point(s) to be added.
-    void draw(const Point& mouse, PenTool@ tool) const
+    void draw(const Vec2& mouse, PenTool@ tool) const
     {
         // By default, draw the next point and its connection to the polygon.
-        const Point@ next = next_point(mouse);
+        const Vec2@ next = next_point(mouse);
         if (next !is null)
         {
             tool.draw_point(next, INACTIVE_COLOUR);
@@ -94,9 +96,9 @@ class AutoCloseMode : PenToolMode
         super(polygon);
     }
 
-    void add_point(const Point& mouse) override
+    void add_point(const Vec2& mouse) override
     {
-        const Point@ next = next_point(mouse);
+        const Vec2@ next = next_point(mouse);
         if (next !is null)
         {
             polygon.insert_last(next);
@@ -106,13 +108,13 @@ class AutoCloseMode : PenToolMode
         }
     }
 
-    const Point@ next_point(const Point& mouse) const override
+    const Vec2@ next_point(const Vec2& mouse) const override
     {
-        array<Point>@ options = calculate_options(mouse);
+        array<Vec2>@ options = calculate_options(mouse);
         return closest_point(options, mouse);
     }
 
-    void draw(const Point& mouse, PenTool@ tool) const override
+    void draw(const Vec2& mouse, PenTool@ tool) const override
     {
         // Draw the angle snap guides.
         if (polygon.size() >= 1)
@@ -122,14 +124,14 @@ class AutoCloseMode : PenToolMode
         }
 
         // Draw the available options.
-        array<Point>@ options = calculate_options(mouse);
+        array<Vec2>@ options = calculate_options(mouse);
         for (uint i = 0; i < options.size(); ++i)
         {
             tool.draw_point(options[i], INACTIVE_COLOUR);
         }
 
         // Draw the next point and its connections to the polygon.
-        const Point@ next = next_point(mouse);
+        const Vec2@ next = next_point(mouse);
         if (next !is null)
         {
             tool.draw_point(next, INACTIVE_COLOUR);
@@ -145,17 +147,17 @@ class AutoCloseMode : PenToolMode
         }
     }
 
-    private array<Point>@ calculate_options(const Point& mouse) const
+    private array<Vec2>@ calculate_options(const Vec2& mouse) const
     {
-        array<Point> options;
+        array<Vec2> options;
 
         if (polygon.size() == 0)
         {
             return options;
         }
 
-        const Point@ first = polygon[0];
-        const Point@ last = polygon[polygon.size() - 1];
+        const Vec2@ first = polygon[0];
+        const Vec2@ last = polygon[polygon.size() - 1];
 
         for (uint i = 0; i < SNAP_DIRECTIONS.size(); ++i)
         {
@@ -168,12 +170,12 @@ class AutoCloseMode : PenToolMode
 
                 // a + s * da = b + t * db
                 // t = da x (a - b) / da x db
-                float t = SNAP_DIRECTIONS[i].cross(first - last) / SNAP_DIRECTIONS[i].cross(SNAP_DIRECTIONS[j]);
-                Point intersection = last + t * SNAP_DIRECTIONS[j];
+                float t = cross_product_z(SNAP_DIRECTIONS[i], first - last) / cross_product_z(SNAP_DIRECTIONS[i], SNAP_DIRECTIONS[j]);
+                Vec2 intersection = last + t * SNAP_DIRECTIONS[j];
                 
                 // Check that the result lies on a grid point.
-                Point rounded = intersection.rounded();
-                if (intersection.is_close_to(rounded))
+                Vec2 rounded = round(intersection);
+                if (approximately(intersection, rounded))
                 {
                     options.insertLast(rounded);
                 }
@@ -192,31 +194,31 @@ class AngleSnapMode : PenToolMode
         super(polygon);
     }
 
-    const Point@ next_point(const Point& mouse) const override
+    const Vec2@ next_point(const Vec2& mouse) const override
     {
-        array<Point> options;
+        array<Vec2> options;
 
         if (polygon.size() == 0)
         {
             return null;
         }
 
-        const Point@ last = polygon[polygon.size() - 1];
+        const Vec2@ last = polygon[polygon.size() - 1];
 
         for (uint i = 0; i < SNAP_DIRECTIONS.size(); ++i)
         {
-            const Point@ delta = SNAP_DIRECTIONS[i];
-            Point offset = mouse - last;
-            float offset_length = offset.dot(delta) / delta.length_sqr();
+            const Vec2@ delta = SNAP_DIRECTIONS[i];
+            Vec2 offset = mouse - last;
+            float offset_length = dot(offset, delta) / delta.sqr_magnitude();
             float grid_length = round(offset_length);
-            Point target = (last + grid_length * delta).rounded();
+            Vec2 target = round(last + grid_length * delta);
             options.insertLast(target);
         }
 
         return closest_point(options, mouse);
     }
 
-    void draw(const Point& mouse, PenTool@ tool) const
+    void draw(const Vec2& mouse, PenTool@ tool) const
     {
         // Draw the angle snap guide.
         if (polygon.size() >= 1)
@@ -236,8 +238,8 @@ class GridSnapMode : PenToolMode
         super(polygon);
     }
 
-    const Point@ next_point(const Point& mouse) const override
+    const Vec2@ next_point(const Vec2& mouse) const override
     {
-        return mouse.rounded();
+        return round(mouse);
     }
 }
