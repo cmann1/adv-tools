@@ -35,7 +35,7 @@ const IntVec2@ closest_point(const array<IntVec2>& target_points, const Vec2& po
 
 void draw_snap_lines(PenTool@ tool, const IntVec2& point)
 {
-    int length = ceil(1000 / tool.script.zoom);
+    int length = int(ceil(1000.0 / tool.script.zoom));
     for (uint i = 0; i < SNAP_DIRECTIONS.size(); ++i)
     {
         IntVec2 src = point + length * SNAP_DIRECTIONS[i];
