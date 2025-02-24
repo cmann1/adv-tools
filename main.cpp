@@ -37,7 +37,7 @@
 #include 'tools/edge_brush/EdgeBrushTool.cpp';
 #include 'tools/emitter_tool/EmitterTool.cpp';
 #include 'tools/shape_tool/ShapeTool.cpp';
-#include 'tools/pen_tool/PenTool.as';
+#include 'tools/pen_tool/PenTool.cpp';
 #include 'tools/prop_line_tool/PropLineTool.cpp';
 #include 'tools/prop_tool/PropTool.cpp';
 #include 'tools/trigger_tool/ExtendedTriggerTool.cpp';
