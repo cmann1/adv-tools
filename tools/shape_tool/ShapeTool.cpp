@@ -46,7 +46,7 @@ class ShapeTool : Tool
 		pick_key.from_config('KeyPickTile', 'MiddleClick');
 		return Tool::reload_shortcut_key();
 	}
-
+	
 	void build_sprites(message@ msg) override
 	{
 		build_sprite(msg, 'icon_shape_tool');
@@ -94,7 +94,7 @@ class ShapeTool : Tool
 			);
 		}
 	}
-
+	
 	private void pick_tile_at_mouse()
 	{
 		int _, layer;

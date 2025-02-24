@@ -194,7 +194,7 @@ class TileWindow
 			
 			create_ui();
 		}
-			
+		
 		// Load the global state into the tool state.
 		int cur_sprite_set, cur_sprite_tile, cur_sprite_palette;
 		script.editor.get_tile_sprite(cur_sprite_set, cur_sprite_tile, cur_sprite_palette);
@@ -207,7 +207,7 @@ class TileWindow
 	{
 		// Write the tool state to the global state.
 		script.editor.set_tile_sprite(sprite_set, sprite_tile, sprite_palette);
-
+		
 		window.hide();
 	}
 	
