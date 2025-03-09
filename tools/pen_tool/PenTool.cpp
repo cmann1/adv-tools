@@ -19,12 +19,15 @@
 
 const string EMBED_spr_icon_pen_tool = SPRITES_BASE + 'icon_pen_tool.png';
 
-const float POINT_RADIUS = 2.0;
-const float LINE_WIDTH = 2.0;
-
-const uint ACTIVE_COLOUR = 0xff44eeff;
-const uint INACTIVE_COLOUR = 0xffeeeeee;
-const uint QUIET_COLOUR = 0x44888888;
+namespace PenTool
+{
+	const float POINT_RADIUS = 2.0;
+	const float LINE_WIDTH = 2.0;
+	
+	const uint ACTIVE_COLOUR = 0xff44eeff;
+	const uint INACTIVE_COLOUR = 0xffeeeeee;
+	const uint QUIET_COLOUR = 0x44888888;
+}
 
 class PenTool : Tool
 {
@@ -143,11 +146,11 @@ class PenTool : Tool
 		// Draw the existing partial polygon.
 		for(uint i = 0; i < polygon.length; ++i)
 		{
-			draw_point(polygon[i], ACTIVE_COLOUR);
+			draw_point(polygon[i], PenTool::ACTIVE_COLOUR);
 			
 			if(i > 0)
 			{
-				draw_line(polygon[i - 1], polygon[i], ACTIVE_COLOUR);
+				draw_line(polygon[i - 1], polygon[i], PenTool::ACTIVE_COLOUR);
 			}
 		}
 	}
@@ -165,7 +168,7 @@ class PenTool : Tool
 	
 	void draw_point(const IntVec2& point, uint32 colour) const
 	{
-		float scaled_radius = POINT_RADIUS / script.zoom;
+		float scaled_radius = PenTool::POINT_RADIUS / script.zoom;
 		float scaled_x, scaled_y;
 		script.transform(48 * point.x, 48 * point.y, script.layer, 10, 22, 22, scaled_x, scaled_y);
 		script.g.draw_rectangle_world(
@@ -178,7 +181,7 @@ class PenTool : Tool
 	
 	void draw_line(const IntVec2& src, const IntVec2& dst, uint32 colour) const
 	{
-		float scaled_width = LINE_WIDTH / script.zoom;
+		float scaled_width = PenTool::LINE_WIDTH / script.zoom;
 		float scaled_src_x, scaled_src_y, scaled_dst_x, scaled_dst_y;
 		script.transform(48 * src.x, 48 * src.y, script.layer, 10, 22, 22, scaled_src_x, scaled_src_y);
 		script.transform(48 * dst.x, 48 * dst.y, script.layer, 10, 22, 22, scaled_dst_x, scaled_dst_y);

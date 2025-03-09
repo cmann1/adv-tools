@@ -4,44 +4,49 @@
 
 #include 'Polygon.cpp'
 
-const array<IntVec2> SNAP_DIRECTIONS = {
-	IntVec2(1, 0),
-	IntVec2(2, 1),
-	IntVec2(1, 1),
-	IntVec2(1, 2),
-	IntVec2(0, 1),
-	IntVec2(-1, 2),
-	IntVec2(-1, 1),
-	IntVec2(-2, 1)
-};
-
-const IntVec2@ closest_point(const array<IntVec2>& target_points, const Vec2& point)
+namespace PenToolMode
 {
-	float closest_distance_sqr = INFINITY;
-	const IntVec2@ closest = null;
 	
-	for(uint i = 0; i < target_points.length; ++i)
+	const array<IntVec2> SNAP_DIRECTIONS = {
+		IntVec2(1, 0),
+		IntVec2(2, 1),
+		IntVec2(1, 1),
+		IntVec2(1, 2),
+		IntVec2(0, 1),
+		IntVec2(-1, 2),
+		IntVec2(-1, 1),
+		IntVec2(-2, 1)
+	};
+	
+	const IntVec2@ closest_point(const array<IntVec2>& target_points, const Vec2& point)
 	{
-		float target_distance_sqr = (Vec2(target_points[i]) - point).sqr_magnitude();
-		if(target_distance_sqr < closest_distance_sqr)
+		float closest_distance_sqr = INFINITY;
+		const IntVec2@ closest = null;
+		
+		for(uint i = 0; i < target_points.length; ++i)
 		{
-			closest_distance_sqr = target_distance_sqr;
-			@closest = target_points[i];
+			float target_distance_sqr = (Vec2(target_points[i]) - point).sqr_magnitude();
+			if(target_distance_sqr < closest_distance_sqr)
+			{
+				closest_distance_sqr = target_distance_sqr;
+				@closest = target_points[i];
+			}
+		}
+		
+		return closest;
+	}
+	
+	void draw_snap_lines(PenTool@ tool, const IntVec2& point)
+	{
+		int length = int(ceil(1000.0 / tool.script.zoom));
+		for(uint i = 0; i < SNAP_DIRECTIONS.length; ++i)
+		{
+			IntVec2 src = point + length * SNAP_DIRECTIONS[i];
+			IntVec2 dst = point - length * SNAP_DIRECTIONS[i];
+			tool.draw_line(src, dst, PenTool::QUIET_COLOUR);
 		}
 	}
 	
-	return closest;
-}
-
-void draw_snap_lines(PenTool@ tool, const IntVec2& point)
-{
-	int length = int(ceil(1000.0 / tool.script.zoom));
-	for(uint i = 0; i < SNAP_DIRECTIONS.length; ++i)
-	{
-		IntVec2 src = point + length * SNAP_DIRECTIONS[i];
-		IntVec2 dst = point - length * SNAP_DIRECTIONS[i];
-		tool.draw_line(src, dst, QUIET_COLOUR);
-	}
 }
 
 /// Base class for modes that the pen tool can be in.
@@ -78,11 +83,11 @@ abstract class PenToolMode
 		const IntVec2@ next = next_point(mouse);
 		if(@next != null)
 		{
-			tool.draw_point(next, INACTIVE_COLOUR);
+			tool.draw_point(next, PenTool::INACTIVE_COLOUR);
 			
 			if(polygon.length >= 1)
 			{
-				tool.draw_line(polygon[polygon.length - 1], next, INACTIVE_COLOUR);
+				tool.draw_line(polygon[polygon.length - 1], next, PenTool::INACTIVE_COLOUR);
 			}
 		}
 	}
@@ -113,7 +118,7 @@ class AutoCloseMode : PenToolMode
 	const IntVec2@ next_point(const Vec2& mouse) const override
 	{
 		array<IntVec2>@ options = calculate_options(mouse);
-		return closest_point(options, mouse);
+		return PenToolMode::closest_point(options, mouse);
 	}
 	
 	void draw(const Vec2& mouse, PenTool@ tool) const override
@@ -121,30 +126,30 @@ class AutoCloseMode : PenToolMode
 		// Draw the angle snap guides.
 		if(polygon.length >= 1)
 		{
-			draw_snap_lines(tool, polygon[0]);
-			draw_snap_lines(tool, polygon[polygon.length - 1]);
+			PenToolMode::draw_snap_lines(tool, polygon[0]);
+			PenToolMode::draw_snap_lines(tool, polygon[polygon.length - 1]);
 		}
 		
 		// Draw the available options.
 		array<IntVec2>@ options = calculate_options(mouse);
 		for(uint i = 0; i < options.length; ++i)
 		{
-			tool.draw_point(options[i], INACTIVE_COLOUR);
+			tool.draw_point(options[i], PenTool::INACTIVE_COLOUR);
 		}
 		
 		// Draw the next point and its connections to the polygon.
 		const IntVec2@ next = next_point(mouse);
 		if(@next != null)
 		{
-			tool.draw_point(next, INACTIVE_COLOUR);
+			tool.draw_point(next, PenTool::INACTIVE_COLOUR);
 			
 			if(polygon.length >= 1)
 			{
 				// Connecting line
-				tool.draw_line(polygon[polygon.length - 1], next, INACTIVE_COLOUR);
+				tool.draw_line(polygon[polygon.length - 1], next, PenTool::INACTIVE_COLOUR);
 				
 				// Closing line
-				tool.draw_line(next, polygon[0], INACTIVE_COLOUR);
+				tool.draw_line(next, polygon[0], PenTool::INACTIVE_COLOUR);
 			}
 		}
 	}
@@ -158,25 +163,25 @@ class AutoCloseMode : PenToolMode
 		
 		const IntVec2@ first = polygon[0];
 		const IntVec2@ last = polygon[polygon.length - 1];
-
-		for(uint i = 0; i < SNAP_DIRECTIONS.length; ++i)
+		
+		for(uint i = 0; i < PenToolMode::SNAP_DIRECTIONS.length; ++i)
 		{
-			for(uint j = 0; j < SNAP_DIRECTIONS.length; ++j)
+			for(uint j = 0; j < PenToolMode::SNAP_DIRECTIONS.length; ++j)
 			{
 				if(i == j)
 					continue;
 				
 				// a + s * da = b + t * db
 				// t = da x (a - b) / da x db
-				int numerator = cross_product_z(SNAP_DIRECTIONS[i], first - last);
-				int denominator = cross_product_z(SNAP_DIRECTIONS[i], SNAP_DIRECTIONS[j]);
+				int numerator = cross_product_z(PenToolMode::SNAP_DIRECTIONS[i], first - last);
+				int denominator = cross_product_z(PenToolMode::SNAP_DIRECTIONS[i], PenToolMode::SNAP_DIRECTIONS[j]);
 				
 				// We are only interested in integer solutions for t.
 				int t = numerator / denominator;
 				if(t * denominator != numerator)
 					continue;
 				
-				IntVec2 intersection = last + t * SNAP_DIRECTIONS[j];
+				IntVec2 intersection = last + t * PenToolMode::SNAP_DIRECTIONS[j];
 				options.insertLast(intersection);
 			}
 		}
@@ -204,9 +209,9 @@ class AngleSnapMode : PenToolMode
 		
 		IntVec2 last = polygon[polygon.length - 1];
 		
-		for(uint i = 0; i < SNAP_DIRECTIONS.length; ++i)
+		for(uint i = 0; i < PenToolMode::SNAP_DIRECTIONS.length; ++i)
 		{
-			IntVec2 delta = SNAP_DIRECTIONS[i];
+			IntVec2 delta = PenToolMode::SNAP_DIRECTIONS[i];
 			Vec2 offset = mouse - Vec2(last);
 			float offset_length = dot(offset, Vec2(delta)) / Vec2(delta).sqr_magnitude();
 			int grid_length = int(round(offset_length));
@@ -214,7 +219,7 @@ class AngleSnapMode : PenToolMode
 			options.insertLast(target);
 		}
 		
-		return closest_point(options, mouse);
+		return PenToolMode::closest_point(options, mouse);
 	}
 	
 	void draw(const Vec2& mouse, PenTool@ tool) const
@@ -222,7 +227,7 @@ class AngleSnapMode : PenToolMode
 		// Draw the angle snap guide.
 		if(polygon.length >= 1)
 		{
-			draw_snap_lines(tool, polygon[polygon.length - 1]);
+			PenToolMode::draw_snap_lines(tool, polygon[polygon.length - 1]);
 		}
 		
 		PenToolMode::draw(mouse, tool);
