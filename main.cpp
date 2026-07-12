@@ -65,6 +65,7 @@ class AdvToolScript
 	scene@ g = get_scene();
 	editor_api@ editor =  get_editor_api();
 	input_api@ input = get_input_api();
+	undo_api@ undo = editor.get_undo_api();
 	camera@ cam;
 	UI@ ui;
 	Mouse@ mouse;

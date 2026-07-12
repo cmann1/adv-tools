@@ -111,6 +111,12 @@ class PropData : SelectableData
 		init_prop();
 	}
 	
+	void update_position()
+	{
+		x = prop.x();
+		y = prop.y();
+	}
+	
 	void step()
 	{
 		script.transform(x, y, layer, sub_layer, 22, 22, aabb_x, aabb_y);

@@ -14,6 +14,7 @@
 #include 'PropsClipboardData.cpp';
 #include 'PropExportType.cpp';
 #include 'PropToolExporter.cpp';
+#include 'UndoProp.cpp';
 
 const string PROP_TOOL_SPRITES_BASE = SPRITES_BASE + 'prop_tool/';
 const string EMBED_spr_icon_prop_tool = SPRITES_BASE + 'icon_prop_tool.png';
@@ -106,6 +107,10 @@ class PropTool : Tool
 	array<PropData@>@ highlighted_props_list { get { return @highlighted_props; } }
 	int highlighted_props_list_count { get { return highlighted_props_count; } }
 	
+	UndoProp@ move_action;
+	UndoProp@ rotate_action;
+	UndoProp@ scale_action;
+	
 	PropTool(AdvToolScript@ script)
 	{
 		super(script, 'Props', 'Prop Tool');
@@ -145,6 +150,10 @@ class PropTool : Tool
 		clear_highlighted_props(true);
 		clear_temporary_selection();
 		state = PropToolState::Idle;
+		
+		@move_action = null;
+		@rotate_action = null;
+		@scale_action = null;
 	}
 	
 	protected void on_select_impl()
@@ -768,7 +777,13 @@ class PropTool : Tool
 			
 			state = Idle;
 			script.ui.mouse_enabled = true;
+			@move_action = null;
 			return;
+		}
+		
+		if (@move_action == null) {
+			@move_action = UndoProp(this, @selected_props, selected_props_count);
+			script.undo.add(@move_action);
 		}
 		
 		float start_x, start_y;
@@ -783,6 +798,8 @@ class PropTool : Tool
 		{
 			selected_props[i].do_drag(drag_delta_x, drag_delta_y);
 		}
+		
+		move_action.update(@selected_props, selected_props_count);
 		
 		selection_x = selection_drag_start_x + drag_delta_x;
 		selection_y = selection_drag_start_y + drag_delta_y;
@@ -818,7 +835,13 @@ class PropTool : Tool
 			clear_temporary_selection();
 			state = Idle;
 			script.ui.mouse_enabled = true;
+			@rotate_action = null;
 			return;
+		}
+		
+		if (@rotate_action == null) {
+			@rotate_action = UndoProp(this, @selected_props, selected_props_count, true);
+			script.undo.add(@rotate_action);
 		}
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
@@ -841,6 +864,8 @@ class PropTool : Tool
 			selection_x = custom_anchor_x + x;
 			selection_y = custom_anchor_y + y;
 		}
+		
+		rotate_action.update(@selected_props, selected_props_count);
 		
 		if(show_selection)
 		{
@@ -872,7 +897,13 @@ class PropTool : Tool
 			clear_temporary_selection();
 			state = Idle;
 			script.ui.mouse_enabled = true;
+			@scale_action = null;
 			return;
+		}
+		
+		if (@scale_action == null) {
+			@scale_action = UndoProp(this, @selected_props, selected_props_count, false, true);
+			script.undo.add(@scale_action);
 		}
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
@@ -895,6 +926,8 @@ class PropTool : Tool
 		{
 			selected_props[i].do_scale(scale, scale, script.alt.down);
 		}
+		
+		scale_action.update(@selected_props, selected_props_count);
 		
 		if(script.alt.down)
 		{
@@ -1129,6 +1162,9 @@ class PropTool : Tool
 	
 	private void flip_props(const bool x, const bool y)
 	{
+		@scale_action = UndoProp(this, @selected_props, selected_props_count, true, true);
+		script.undo.add(@scale_action);
+		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
 		
@@ -1153,12 +1189,18 @@ class PropTool : Tool
 			}
 		}
 		
+		scale_action.update(@selected_props, selected_props_count);
+		@scale_action = null;
+		
 		selection_angle = 0;
 		recalculate_selection_bounds(true, selection_x, selection_y);
 	}
 	
 	private void mirror_selected(const bool x_axis=true)
 	{
+		@scale_action = UndoProp(this, @selected_props, selected_props_count, true, true);
+		script.undo.add(@scale_action);
+		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
 		
@@ -1194,6 +1236,9 @@ class PropTool : Tool
 			
 			data.update(true);
 		}
+		
+		scale_action.update(@selected_props, selected_props_count);
+		@scale_action = null;
 		
 		selection_angle = 0;
 		recalculate_selection_bounds();
@@ -1321,7 +1366,7 @@ class PropTool : Tool
 		select_prop(null, SelectAction::Set);
 	}
 	
-	private void recalculate_selection_bounds(const bool set_origin=false, const float origin_x=0, const float origin_y=0)
+	void recalculate_selection_bounds(const bool set_origin=false, const float origin_x=0, const float origin_y=0)
 	{
 		if(selected_props_count == 0)
 			return;
@@ -1910,6 +1955,24 @@ class PropTool : Tool
 	// //////////////////////////////////////////////////////////
 	// Other
 	// //////////////////////////////////////////////////////////
+	
+	void update_prop_positions()
+	{
+		for(int i = 0; i < selected_props_count; i++)
+		{
+			selected_props[i].update_position();
+		}
+	}
+	
+	void update_all_props() {
+		for(int i = 0; i < selected_props_count; i++)
+		{
+			selected_props[i].update(true);
+		}
+		
+		selection_angle = 0;
+		recalculate_selection_bounds();
+	}
 	
 	private void clear_custom_anchor()
 	{
