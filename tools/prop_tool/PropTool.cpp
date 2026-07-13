@@ -16,6 +16,7 @@
 #include 'PropToolExporter.cpp';
 #include 'UndoProp.cpp';
 #include 'UndoPropAdd.cpp';
+#include 'UndoPropLayer.cpp';
 #include 'UndoPropPalette.cpp';
 
 const string PROP_TOOL_SPRITES_BASE = SPRITES_BASE + 'prop_tool/';
@@ -114,6 +115,7 @@ class PropTool : Tool
 	UndoProp@ scale_action;
 	UndoProp@ shift_action;
 	UndoPropAdd@ delete_action;
+	UndoPropLayer@ layer_action;
 	
 	PropTool(AdvToolScript@ script)
 	{
@@ -160,6 +162,7 @@ class PropTool : Tool
 		@scale_action = null;
 		@shift_action = null;
 		@delete_action = null;
+		@layer_action = null;
 	}
 	
 	protected void on_select_impl()
@@ -731,13 +734,22 @@ class PropTool : Tool
 		PropData@ prop_data = null;
 		IWorldBoundingBox@ bounding_box = null;
 		
+		UndoPropLayer@ last = cast<UndoPropLayer@>(script.undo.active_script_action());
+		
 		if(script.shift.down)
 		{
+			if (selected_props_count == 0)
+				return;
+			
+			init_layer_action();
+			
 			for(int i = 0; i < selected_props_count; i++)
 			{
 				@prop_data = @selected_props[i];
 				prop_data.shift_layer(mouse.scroll, script.alt.down);
 			}
+			
+			layer_action.update(@selected_props, selected_props_count);
 			
 			selection_bounding_box.x1 = selection_x + selection_x1;
 			selection_bounding_box.y1 = selection_y + selection_y1;
@@ -746,16 +758,22 @@ class PropTool : Tool
 		}
 		else if(@hovered_prop != null)
 		{
+			init_layer_action(hovered_prop);
+			
 			@prop_data = hovered_prop;
 			hovered_prop.shift_layer(mouse.scroll, script.alt.down);
 			@bounding_box = prop_data;
+			
+			layer_action.update(hovered_prop);
+		}
+		else
+		{
+			return;
 		}
 		
 		if(@prop_data != null)
 		{
-			selection_angle = 0;
-			recalculate_selection_bounds();
-			update_selection_layer();
+			invalidate_selection_layer_change();
 		}
 		
 		if(@bounding_box != null)
@@ -771,6 +789,35 @@ class PropTool : Tool
 		}
 		
 		try_update_info();
+	}
+	
+	private void init_layer_action()
+	{
+		if(has_active_layer_action() && layer_action.can_update(@selected_props, selected_props_count))
+			return;
+		
+		@layer_action = UndoPropLayer(this, @selected_props, selected_props_count);
+		script.undo.add(layer_action);
+		script.undo.finished(false);
+	}
+	
+	private void init_layer_action(PropData@ data)
+	{
+		if(has_active_layer_action() && layer_action.can_update(data))
+			return;
+		
+		@layer_action = UndoPropLayer(this, data);
+		script.undo.add(layer_action);
+		script.undo.finished(false);
+	}
+	
+	private bool has_active_layer_action()
+	{
+		if(@layer_action == null)
+			return false;
+		
+		UndoPropLayer@ last = cast<UndoPropLayer@>(script.undo.active_script_action());
+		return @last == @layer_action;
 	}
 	
 	private void state_moving()
@@ -1507,6 +1554,13 @@ class PropTool : Tool
 		}
 	}
 	
+	void invalidate_selection_layer_change()
+	{
+		selection_angle = 0;
+		recalculate_selection_bounds();
+		update_selection_layer();
+	}
+	
 	private void clear_temporary_selection()
 	{
 		if(!temporary_selection)
@@ -1739,7 +1793,7 @@ class PropTool : Tool
 		show_prop_message(num_locked_sub_layers + ' sub layers unlocked.', true);
 	}
 	
-	private void try_update_info()
+	void try_update_info()
 	{
 		if(@hovered_prop != null)
 		{
