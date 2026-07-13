@@ -1631,6 +1631,10 @@ class PropTool : Tool
 			select_prop(data, SelectAction::Add, false);
 		}
 		
+		UndoPropAdd@ undo = UndoPropAdd(this, true, @selected_props, selected_props_count);
+		script.undo.add(undo);
+		script.undo.finished();
+		
 		recalculate_selection_bounds();
 		toolbar.update_buttons(selected_props_count);
 		
