@@ -15,6 +15,7 @@
 #include 'PropExportType.cpp';
 #include 'PropToolExporter.cpp';
 #include 'UndoProp.cpp';
+#include 'UndoPropAdd.cpp';
 
 const string PROP_TOOL_SPRITES_BASE = SPRITES_BASE + 'prop_tool/';
 const string EMBED_spr_icon_prop_tool = SPRITES_BASE + 'icon_prop_tool.png';
@@ -111,6 +112,7 @@ class PropTool : Tool
 	UndoProp@ rotate_action;
 	UndoProp@ scale_action;
 	UndoProp@ shift_action;
+	UndoPropAdd@ delete_action;
 	
 	PropTool(AdvToolScript@ script)
 	{
@@ -156,6 +158,7 @@ class PropTool : Tool
 		@rotate_action = null;
 		@scale_action = null;
 		@shift_action = null;
+		@delete_action = null;
 	}
 	
 	protected void on_select_impl()
@@ -589,6 +592,20 @@ class PropTool : Tool
 			if(hovered_prop.selected)
 			{
 				select_prop(hovered_prop, SelectAction::Remove);
+			}
+			
+			UndoPropAdd@ last = cast<UndoPropAdd@>(script.undo.active_script_action());
+			if (@delete_action == null || @last != @delete_action)
+			{
+				array<PropData@> props(1);
+				@props[0] = hovered_prop;
+				@delete_action = UndoPropAdd(this, false, @props, 1);
+				script.undo.add(delete_action);
+				script.undo.finished(false);
+			}
+			else
+			{
+				delete_action.add_prop(hovered_prop);
 			}
 			
 			script.g.remove_prop(hovered_prop.prop);
@@ -1622,6 +1639,12 @@ class PropTool : Tool
 	
 	private void delete_selected()
 	{
+		if (selected_props_count == 0) return;
+		
+		UndoPropAdd@ undo = UndoPropAdd(this, false, @selected_props, selected_props_count);
+		script.undo.add(undo);
+		script.undo.finished();
+		
 		for(int i = 0; i < selected_props_count; i++)
 		{
 			script.g.remove_prop(selected_props[i].prop);
