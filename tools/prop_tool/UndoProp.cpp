@@ -1,5 +1,6 @@
 class UndoProp : callback_base
 {
+	
 	PropTool@ tool;
 	array<UndoPropData> props;
 	bool position;
@@ -64,7 +65,9 @@ class UndoProp : callback_base
 	}
 }
 
-class UndoPropData {
+class UndoPropData
+{
+	
 	prop@ prop;
 	
 	float start_x, start_y;
@@ -134,4 +137,5 @@ class UndoPropData {
 			prop.scale_y(end_scale_y);
 		}
 	}
+	
 }
