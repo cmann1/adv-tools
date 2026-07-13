@@ -110,6 +110,7 @@ class PropTool : Tool
 	UndoProp@ move_action;
 	UndoProp@ rotate_action;
 	UndoProp@ scale_action;
+	UndoProp@ shift_action;
 	
 	PropTool(AdvToolScript@ script)
 	{
@@ -154,6 +155,7 @@ class PropTool : Tool
 		@move_action = null;
 		@rotate_action = null;
 		@scale_action = null;
+		@shift_action = null;
 	}
 	
 	protected void on_select_impl()
@@ -784,6 +786,7 @@ class PropTool : Tool
 		if (@move_action == null) {
 			@move_action = UndoProp(this, @selected_props, selected_props_count);
 			script.undo.add(@move_action);
+			script.undo.finished(true);
 		}
 		
 		float start_x, start_y;
@@ -842,6 +845,7 @@ class PropTool : Tool
 		if (@rotate_action == null) {
 			@rotate_action = UndoProp(this, @selected_props, selected_props_count, true);
 			script.undo.add(@rotate_action);
+			script.undo.finished(true);
 		}
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
@@ -904,6 +908,7 @@ class PropTool : Tool
 		if (@scale_action == null) {
 			@scale_action = UndoProp(this, @selected_props, selected_props_count, false, true);
 			script.undo.add(@scale_action);
+			script.undo.finished(true);
 		}
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
@@ -1151,10 +1156,20 @@ class PropTool : Tool
 	
 	private void shift_props(const float dx, const float dy)
 	{
+		UndoProp@ last = cast<UndoProp@>(script.undo.active_script_action());
+		if (@shift_action == null || @last != @shift_action)
+		{
+			@shift_action = UndoProp(this, @selected_props, selected_props_count);
+			script.undo.add(@shift_action);
+			script.undo.finished(false);
+		}
+		
 		for(int i = 0; i < selected_props_count; i++)
 		{
 			selected_props[i].move(dx, dy);
 		}
+		
+		shift_action.update(@selected_props, selected_props_count);
 		
 		selection_x += dx;
 		selection_y += dy;
@@ -1164,6 +1179,7 @@ class PropTool : Tool
 	{
 		@scale_action = UndoProp(this, @selected_props, selected_props_count, true, true);
 		script.undo.add(@scale_action);
+		script.undo.finished(true);
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
@@ -1200,6 +1216,7 @@ class PropTool : Tool
 	{
 		@scale_action = UndoProp(this, @selected_props, selected_props_count, true, true);
 		script.undo.add(@scale_action);
+		script.undo.finished(true);
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
@@ -1293,6 +1310,8 @@ class PropTool : Tool
 	
 	private void select_prop(PropData@ prop_data, const SelectAction action, const bool update=true)
 	{
+		script.undo.finished(true);
+		
 		if(action == SelectAction::Set)
 		{
 			while(selected_props_count > 0)
@@ -1404,6 +1423,8 @@ class PropTool : Tool
 		selection_y1 -= selection_y;
 		selection_x2 -= selection_x;
 		selection_y2 -= selection_y;
+		
+		selection_angle = 0;
 	}
 	
 	private void update_selection_bounds(const bool flipped=false)
