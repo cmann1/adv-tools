@@ -115,6 +115,7 @@ class PropData : SelectableData
 	{
 		x = prop.x();
 		y = prop.y();
+		init_anchors();
 	}
 	
 	void step()
