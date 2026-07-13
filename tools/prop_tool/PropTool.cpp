@@ -16,6 +16,7 @@
 #include 'PropToolExporter.cpp';
 #include 'UndoProp.cpp';
 #include 'UndoPropAdd.cpp';
+#include 'UndoPropPalette.cpp';
 
 const string PROP_TOOL_SPRITES_BASE = SPRITES_BASE + 'prop_tool/';
 const string EMBED_spr_icon_prop_tool = SPRITES_BASE + 'icon_prop_tool.png';
@@ -1282,12 +1283,18 @@ class PropTool : Tool
 	{
 		dir = dir < 1 ? -1 : 1;
 		
+		UndoPropPalette@ undo = UndoPropPalette(@selected_props, selected_props_count);
+		script.undo.add(undo);
+		script.undo.finished();
+		
 		for(int i = 0; i < selected_props_count; i++)
 		{
 			PropData@ data = @selected_props[i];
 			prop@ p = data.prop;
 			const int count = data.spr.get_palette_count(data.sprite_name);
-			p.palette(mod(p.palette() + dir, count));
+			uint palette = mod(p.palette() + dir, count);
+			p.palette(palette);
+			undo.props[i].end_palette = palette;
 		}
 		
 		try_update_info();
