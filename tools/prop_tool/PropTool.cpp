@@ -786,7 +786,7 @@ class PropTool : Tool
 		if (@move_action == null) {
 			@move_action = UndoProp(this, @selected_props, selected_props_count);
 			script.undo.add(@move_action);
-			script.undo.finished(true);
+			script.undo.finished();
 		}
 		
 		float start_x, start_y;
@@ -845,7 +845,7 @@ class PropTool : Tool
 		if (@rotate_action == null) {
 			@rotate_action = UndoProp(this, @selected_props, selected_props_count, true);
 			script.undo.add(@rotate_action);
-			script.undo.finished(true);
+			script.undo.finished();
 		}
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
@@ -908,7 +908,7 @@ class PropTool : Tool
 		if (@scale_action == null) {
 			@scale_action = UndoProp(this, @selected_props, selected_props_count, false, true);
 			script.undo.add(@scale_action);
-			script.undo.finished(true);
+			script.undo.finished();
 		}
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
@@ -1179,7 +1179,7 @@ class PropTool : Tool
 	{
 		@scale_action = UndoProp(this, @selected_props, selected_props_count, true, true);
 		script.undo.add(@scale_action);
-		script.undo.finished(true);
+		script.undo.finished();
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
@@ -1216,7 +1216,7 @@ class PropTool : Tool
 	{
 		@scale_action = UndoProp(this, @selected_props, selected_props_count, true, true);
 		script.undo.add(@scale_action);
-		script.undo.finished(true);
+		script.undo.finished();
 		
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
@@ -1310,7 +1310,7 @@ class PropTool : Tool
 	
 	private void select_prop(PropData@ prop_data, const SelectAction action, const bool update=true)
 	{
-		script.undo.finished(true);
+		script.undo.finished();
 		
 		if(action == SelectAction::Set)
 		{
