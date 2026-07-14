@@ -20,8 +20,8 @@ class EmitterData : SelectableData
 	private float rect_x1, rect_y1;
 	private float rect_x2, rect_y2;
 	
-	private float drag_start_x, drag_start_y;
-	private float drag_start_width, drag_start_height;
+	float drag_start_x, drag_start_y;
+	float drag_start_width, drag_start_height;
 	
 	void init(AdvToolScript@ script, EmitterTool@ tool, entity@ e, emitter@ em, const int scene_index)
 	{
@@ -45,6 +45,8 @@ class EmitterData : SelectableData
 	{
 		x = em.x();
 		y = em.y();
+		em.get_size(width, height);
+		rotation = em.rotation();
 		
 		script.transform(x, y, layer, sub_layer, 22, 22, aabb_x, aabb_y);
 		script.transform_size(width, height, layer, sub_layer, 22, 22, world_size_x, world_size_y);
@@ -375,6 +377,8 @@ class EmitterData : SelectableData
 	
 	void start_rotate()
 	{
+		drag_start_x = x;
+		drag_start_y = y;
 		drag_start_width = rotation;
 	}
 	
@@ -390,8 +394,11 @@ class EmitterData : SelectableData
 	{
 		if(cancel)
 		{
+			x = drag_start_x;
+			y = drag_start_y;
 			rotation = drag_start_width;
 			em.rotation(round_int(rotation));
+			em.set_xy(x, y);
 		}
 		
 		update();

@@ -4,7 +4,10 @@
 #include 'EmitterToolWindow.cpp';
 #include '../../../../lib/emitters/names.cpp';
 #include '../../../../lib/emitters/common.cpp';
+#include '../../undo/UndoEmitterSize.cpp';
 #include '../../undo/UndoEntityAdd.cpp';
+#include '../../undo/UndoEntityMove.cpp';
+#include '../../undo/UndoEntityRotation.cpp';
 #include '../../misc/LineData.cpp';
 
 class EmitterTool : Tool
@@ -58,6 +61,7 @@ class EmitterTool : Tool
 	LineData _line;
 	
 	UndoEntityAdd@ delete_action;
+	UndoEntityMove@ shift_action;
 	
 	EmitterTool(AdvToolScript@ script)
 	{
@@ -116,6 +120,7 @@ class EmitterTool : Tool
 		@hovered_emitter = null;
 		
 		@delete_action = null;
+		@shift_action = null;
 	}
 	
 	protected void step_impl() override
@@ -638,6 +643,18 @@ class EmitterTool : Tool
 		
 		if(script.escape_press || !mouse.left_down)
 		{
+			if(!script.escape_press)
+			{
+				UndoEntityMove@ undo = UndoEntityMove(script);
+				script.undo.add(undo);
+				script.undo.finished();
+				for(int i = 0; i < selected_emitters_count; i++)
+				{
+					EmitterData@ data = selected_emitters[i];
+					undo.add(data.e, data.drag_start_x, data.drag_start_y, data.x, data.y);
+				}
+			}
+			
 			for(int i = 0; i < selected_emitters_count; i++)
 			{
 				selected_emitters[i].stop_drag(!script.escape_press);
@@ -664,10 +681,22 @@ class EmitterTool : Tool
 	
 	private void state_scaling()
 	{
+		EmitterData@ data = @primary_selected;
+		
 		if(script.escape_press || !mouse.left_down)
 		{
 			primary_selected.do_handles(dragged_handle);
 			primary_selected.stop_scale(script.escape_press);
+			
+			if(!script.escape_press)
+			{
+				UndoEmitterSize@ undo = UndoEmitterSize(script, data.em,
+					data.drag_start_x, data.drag_start_y,
+					data.drag_start_width, data.drag_start_height,
+					data.x, data.y, data.width, data.height);
+				script.undo.add(undo);
+				script.undo.finished();
+			}
 			
 			if(primary_selected.is_mouse_inside == 0 && !primary_selected.mouse_over_handle)
 			{
@@ -678,8 +707,6 @@ class EmitterTool : Tool
 			script.ui.mouse_enabled = true;
 			return;
 		}
-		
-		EmitterData@ data = @primary_selected;
 		
 		float local_x, local_y;
 		script.world_to_local(
@@ -745,10 +772,20 @@ class EmitterTool : Tool
 	
 	private void state_rotating()
 	{
+		EmitterData@ data = @primary_selected;
+		
 		if(script.escape_press || !mouse.left_down)
 		{
 			primary_selected.do_handles(dragged_handle);
 			primary_selected.stop_rotate(script.escape_press);
+			
+			if(!script.escape_press)
+			{
+				UndoEntityRotation@ undo = UndoEntityRotation(script);
+				undo.add(data.e, data.drag_start_width, data.rotation);
+				script.undo.add(undo);
+				script.undo.finished();
+			}
 			
 			if(primary_selected.is_mouse_inside == 0 && !primary_selected.mouse_over_handle)
 			{
@@ -761,8 +798,6 @@ class EmitterTool : Tool
 			script.ui.mouse_enabled = true;
 			return;
 		}
-		
-		EmitterData@ data = @primary_selected;
 		
 		float mx, my;
 		script.mouse_layer(data.layer, data.sub_layer, mx, my);
@@ -916,9 +951,25 @@ class EmitterTool : Tool
 	
 	private void shift_emitters(const float dx, const float dy)
 	{
+		UndoEntityMove@ last = cast<UndoEntityMove@>(script.undo.active_script_action());
+		if (@shift_action == null || @last != @shift_action)
+		{
+			@shift_action = UndoEntityMove(script);
+			script.undo.add(@shift_action);
+			script.undo.finished(false);
+			
+			for(int i = 0; i < selected_emitters_count; i++)
+			{
+				EmitterData@ data = selected_emitters[i];
+				shift_action.add(data.e, data.x, data.y, data.x, data.y);
+			}
+		}
+		
 		for(int i = 0; i < selected_emitters_count; i++)
 		{
-			selected_emitters[i].move(dx, dy);
+			EmitterData@ data = selected_emitters[i];
+			data.move(dx, dy);
+			shift_action.update(i, data.x, data.y);
 		}
 	}
 	
