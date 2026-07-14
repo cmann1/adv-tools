@@ -4,6 +4,7 @@
 #include 'EmitterToolWindow.cpp';
 #include '../../../../lib/emitters/names.cpp';
 #include '../../../../lib/emitters/common.cpp';
+#include '../../undo/UndoEntityAdd.cpp';
 #include '../../misc/LineData.cpp';
 
 class EmitterTool : Tool
@@ -56,6 +57,8 @@ class EmitterTool : Tool
 	
 	LineData _line;
 	
+	UndoEntityAdd@ delete_action;
+	
 	EmitterTool(AdvToolScript@ script)
 	{
 		super(script, 'Emitter Tool');
@@ -81,9 +84,8 @@ class EmitterTool : Tool
 	protected void on_editor_unloaded_impl() override
 	{
 		select_none();
-		clear_highlighted_emitters();
-		clear_pending_emitters();
-		state = EmitterToolState::Idle;
+		
+		reset();
 	}
 	
 	protected void on_select_impl()
@@ -91,17 +93,29 @@ class EmitterTool : Tool
 		properties_window.show(script, this);
 		
 		script.hide_gui_panels(true);
+		
+		reset();
 	}
 	
 	protected void on_deselect_impl()
 	{
 		@primary_selected = null;
-		@hovered_emitter = null;
-		clear_highlighted_emitters();
 		
 		properties_window.hide();
 		
 		script.hide_gui_panels(false);
+		
+		reset();
+	}
+	
+	protected void reset()
+	{
+		clear_highlighted_emitters();
+		clear_pending_emitters();
+		state = EmitterToolState::Idle;
+		@hovered_emitter = null;
+		
+		@delete_action = null;
 	}
 	
 	protected void step_impl() override
@@ -125,7 +139,8 @@ class EmitterTool : Tool
 		
 		for(int j = highlighted_emitters_count - 1; j >= 0; j--)
 		{
-			highlighted_emitters[j].visible = false;
+			EmitterData@ data = highlighted_emitters[j];
+			data.visible = false;
 		}
 		
 		int mouse_inside_count = 0;
@@ -173,7 +188,6 @@ class EmitterTool : Tool
 			for(i = highlighted_emitters_count - 1; i >= 0; i--)
 			{
 				EmitterData@ data = @highlighted_emitters[i];
-				@highlighted_emitters[i] = @data;
 				
 				if(data.is_mouse_inside != 1)
 					continue;
@@ -416,10 +430,16 @@ class EmitterTool : Tool
 		
 		// Delete
 		
-		if(@script.ui.focus == null && script.input.key_check_gvb(GVB::Delete))
+		if(@script.ui.focus == null && selected_emitters_count > 0 && script.input.key_check_gvb(GVB::Delete))
 		{
+			UndoEntityAdd@ undo = UndoEntityAdd(script, false);
+			undo.entities.resize(selected_emitters_count);
+			script.undo.add(undo);
+			script.undo.finished();
+			
 			for(int i = 0; i < selected_emitters_count; i++)
 			{
+				@undo.entities[i] = selected_emitters[i].e;
 				script.g.remove_entity(selected_emitters[i].e);
 			}
 			
@@ -434,6 +454,18 @@ class EmitterTool : Tool
 		
 		if(@hovered_emitter != null && (mouse.right_press || script.shift.down && mouse.right_down))
 		{
+			UndoEntityAdd@ last = cast<UndoEntityAdd@>(script.undo.active_script_action());
+			if (@delete_action == null || @last != @delete_action)
+			{
+				@delete_action = UndoEntityAdd(script, false, hovered_emitter.e);
+				script.undo.add(delete_action);
+				script.undo.finished(false);
+			}
+			else
+			{
+				delete_action.add_entity(hovered_emitter.e);
+			}
+			
 			if(hovered_emitter.selected)
 			{
 				select_emitter(hovered_emitter, SelectAction::Remove);
@@ -868,6 +900,9 @@ class EmitterTool : Tool
 			round_int(rotation));
 		script.g.add_entity(emt);
 		
+		script.undo.add(UndoEntityAdd(script, true, emt));
+		script.undo.finished();
+		
 		EmitterData@ data = highlight(emt, 0);
 		select_emitter(data, SelectAction::Set, true);
 		data.update();
@@ -967,6 +1002,12 @@ class EmitterTool : Tool
 			}
 			
 			selection_updated = true;
+			
+			if(update_primary && @primary_selected == null && selected_emitters_count > 0)
+			{
+				@primary_selected = selected_emitters[selected_emitters_count - 1];
+				primary_selected.primary_selected = true;
+			}
 		}
 	}
 	
@@ -975,9 +1016,9 @@ class EmitterTool : Tool
 		select_emitter(null, SelectAction::Set);
 	}
 	
-	private EmitterData@ highlight(entity@ emitter, const int index)
+	private EmitterData@ highlight(entity@ e, const int index)
 	{
-		const string key = emitter.id() + '';
+		const string key = e.id() + '';
 		EmitterData@ emitter_data;
 		
 		if(highlighted_emitters_map.exists(key))
@@ -997,7 +1038,7 @@ class EmitterTool : Tool
 		@highlighted_emitters_map[key] = @emitter_data;
 		@highlighted_emitters[highlighted_emitters_count++] = @emitter_data;
 		
-		emitter_data.init(script, this, emitter, index);
+		emitter_data.init(script, this, e, e.as_emitter(), index);
 		
 		return emitter_data;
 	}
@@ -1006,9 +1047,9 @@ class EmitterTool : Tool
 	{
 		for(int i = highlighted_emitters_count - 1; i >= 0; i--)
 		{
-			EmitterData@ emitter_data = @highlighted_emitters[i];
+			EmitterData@ data = @highlighted_emitters[i];
 			
-			if(emitter_data.hovered || emitter_data.selected || emitter_data.visible)
+			if(!data.em.destroyed() && (data.hovered || data.selected || data.visible))
 				continue;
 			
 			if(emitter_data_pool_count >= emitter_data_pool_size)
@@ -1016,9 +1057,9 @@ class EmitterTool : Tool
 				emitter_data_pool.resize(emitter_data_pool_size += 32);
 			}
 			
-			@emitter_data_pool[emitter_data_pool_count++] = @emitter_data;
+			@emitter_data_pool[emitter_data_pool_count++] = @data;
 			@highlighted_emitters[i] = @highlighted_emitters[--highlighted_emitters_count];
-			highlighted_emitters_map.delete(emitter_data.key);
+			highlighted_emitters_map.delete(data.key);
 		}
 	}
 	
