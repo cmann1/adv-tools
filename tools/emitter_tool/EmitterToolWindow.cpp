@@ -5,6 +5,7 @@
 #include '../../../../lib/ui3/elements/Select.cpp';
 #include '../../../../lib/ui3/elements/Window.cpp';
 
+#include '../../undo/UndoEmitterLayer.cpp';
 #include '../../undo/UndoEntityRotation.cpp';
 #include 'EmitterIdData.cpp';
 
@@ -34,6 +35,7 @@ class EmitterToolWindow
 	private int selected_layer;
 	
 	private UndoEntityRotation@ rotate_action;
+	private UndoEmitterLayer@ layer_action;
 	
 	private void create_ui()
 	{
@@ -183,6 +185,7 @@ class EmitterToolWindow
 	void reset()
 	{
 		@rotate_action = null;
+		@layer_action = null;
 	}
 	
 	void hide()
@@ -438,6 +441,32 @@ class EmitterToolWindow
 		update_selection();
 	}
 	
+	private void init_layer_action()
+	{
+		UndoEmitterLayer@ last = cast<UndoEmitterLayer@>(script.undo.active_script_action());
+		if (@layer_action != null && @last == @layer_action)
+			return;
+		
+		@layer_action = UndoEmitterLayer();
+		script.undo.add(@layer_action);
+		script.undo.finished(false);
+		
+		for(int i = 0; i < selected_emitters_count; i++)
+		{
+			EmitterData@  data = selected_emitters[i];
+			layer_action.add(data.em, data.layer, data.sub_layer);
+		}
+	}
+	
+	private void update_layer_action()
+	{
+		for(int i = 0; i < selected_emitters_count; i++)
+		{
+			EmitterData@ data = selected_emitters[i];
+			layer_action.update(i, data.layer, data.sub_layer);
+		}
+	}
+	
 	// //////////////////////////////////////////////////////////
 	// Events
 	// //////////////////////////////////////////////////////////
@@ -457,12 +486,16 @@ class EmitterToolWindow
 		if(value == -1)
 			return;
 		
+		init_layer_action();
+		
 		tool.layer = value;
 		
 		for(int i = 0; i < selected_emitters_count; i++)
 		{
 			selected_emitters[i].update_layer(tool.layer);
 		}
+		
+		update_layer_action();
 		
 		script.select_layer(value);
 		update_selection();
@@ -475,12 +508,16 @@ class EmitterToolWindow
 		if(value == -1)
 			return;
 		
+		init_layer_action();
+		
 		tool.sub_layer = value;
 		
 		for(int i = 0; i < selected_emitters_count; i++)
 		{
 			selected_emitters[i].update_sub_layer(tool.sub_layer);
 		}
+		
+		update_layer_action();
 		
 		update_selection();
 	}

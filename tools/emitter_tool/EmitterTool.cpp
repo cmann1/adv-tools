@@ -4,6 +4,7 @@
 #include 'EmitterToolWindow.cpp';
 #include '../../../../lib/emitters/names.cpp';
 #include '../../../../lib/emitters/common.cpp';
+#include '../../undo/UndoEmitterLayer.cpp';
 #include '../../undo/UndoEmitterSize.cpp';
 #include '../../undo/UndoEntityAdd.cpp';
 #include '../../undo/UndoEntityMove.cpp';
@@ -62,6 +63,7 @@ class EmitterTool : Tool
 	
 	UndoEntityAdd@ delete_action;
 	UndoEntityMove@ shift_action;
+	UndoEmitterLayer@ layer_action;
 	
 	EmitterTool(AdvToolScript@ script)
 	{
@@ -121,6 +123,7 @@ class EmitterTool : Tool
 		
 		@delete_action = null;
 		@shift_action = null;
+		@layer_action = null;
 		
 		properties_window.reset();
 	}
@@ -552,6 +555,20 @@ class EmitterTool : Tool
 		EmitterData@ data = null;
 		IWorldBoundingBox@ bounding_box = null;
 		
+		UndoEmitterLayer@ last = cast<UndoEmitterLayer@>(script.undo.active_script_action());
+		if (@layer_action == null || @last != @layer_action)
+		{
+			@layer_action = UndoEmitterLayer();
+			script.undo.add(@layer_action);
+			script.undo.finished(false);
+			
+			for(int i = 0; i < selected_emitters_count; i++)
+			{
+				@data = selected_emitters[i];
+				layer_action.add(data.em, data.layer, data.sub_layer);
+			}
+		}
+		
 		if(script.shift.down)
 		{
 			selection_bounding_box.reset();
@@ -581,6 +598,12 @@ class EmitterTool : Tool
 		else if(@data != null)
 		{
 			script.show_layer_sub_layer_overlay(@selection_bounding_box, data.layer, data.sub_layer);
+		}
+		
+		for(int i = 0; i < selected_emitters_count; i++)
+		{
+			@data = selected_emitters[i];
+			layer_action.update(i, data.layer, data.sub_layer);
 		}
 		
 		properties_window.update_layer();

@@ -47,6 +47,8 @@ class EmitterData : SelectableData
 		y = em.y();
 		em.get_size(width, height);
 		rotation = em.rotation();
+		layer = em.layer();
+		sub_layer = em.sub_layer();
 		
 		script.transform(x, y, layer, sub_layer, 22, 22, aabb_x, aabb_y);
 		script.transform_size(width, height, layer, sub_layer, 22, 22, world_size_x, world_size_y);
