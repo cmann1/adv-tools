@@ -156,13 +156,6 @@ class PropTool : Tool
 		clear_highlighted_props(true);
 		clear_temporary_selection();
 		state = PropToolState::Idle;
-		
-		@move_action = null;
-		@rotate_action = null;
-		@scale_action = null;
-		@shift_action = null;
-		@delete_action = null;
-		@layer_action = null;
 	}
 	
 	protected void on_select_impl()
@@ -1141,6 +1134,13 @@ class PropTool : Tool
 		drag_rotation_handle = false;
 		@previous_hovered_prop = null;
 		selected_props_info = -1;
+		
+		@move_action = null;
+		@rotate_action = null;
+		@scale_action = null;
+		@shift_action = null;
+		@delete_action = null;
+		@layer_action = null;
 	}
 	
 	private void get_handle_position(const bool vertical, const float offset, float &out x, float &out y, const bool allow_flipped=true)
