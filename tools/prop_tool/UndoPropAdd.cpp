@@ -5,10 +5,13 @@ class UndoPropAdd : callback_base
 	private bool add;
 	array<prop@> props;
 	
-	UndoPropAdd(PropTool@ tool, bool add, array<PropData@>@ selected_props, int selected_props_count)
+	UndoPropAdd(PropTool@ tool, bool add, array<PropData@>@ selected_props = null, int selected_props_count = 0)
 	{
 		@this.tool = tool;
 		this.add = add;
+		
+		if (@selected_props == null)
+			return;
 		
 		props.resize(selected_props_count);
 		for(int i = 0; i < selected_props_count; i++)
@@ -22,7 +25,13 @@ class UndoPropAdd : callback_base
 		props.insertLast(data.prop);
 	}
 	
-	void undo() {
+	void add_prop(prop@ prop)
+	{
+		props.insertLast(prop);
+	}
+	
+	void undo()
+	{
 		if(add)
 		{
 			for(uint i = 0; i < props.length; i++)
@@ -39,7 +48,8 @@ class UndoPropAdd : callback_base
 		}
 	}
 	
-	void redo() {
+	void redo()
+	{
 		if(add)
 		{
 			for(uint i = 0; i < props.length; i++)

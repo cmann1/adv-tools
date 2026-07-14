@@ -3,6 +3,7 @@
 #include '../../../../lib/props/common.cpp';
 #include '../../../../lib/string/common.cpp';
 
+#include '../prop_tool/UndoPropAdd.cpp';
 #include 'PropLineProp.cpp';
 #include 'PropLineRotationMode.cpp';
 #include 'PropLineRotationOffsets.cpp';
@@ -616,6 +617,10 @@ class PropLineTool : Tool
 	/// Must call `calculate_props` before calling this.
 	private void place_props()
 	{
+		UndoPropAdd@ undo = UndoPropAdd(prop_tool, true);
+		script.undo.add(undo);
+		script.undo.finished();
+		
 		for(int i = 0; i < props_count; i++)
 		{
 			PropLineProp@ data = @props[i];
@@ -627,6 +632,7 @@ class PropLineTool : Tool
 			p.scale_x(data.scale_x);
 			p.scale_y(data.scale_y);
 			script.g.add_prop(p);
+			undo.add_prop(p);
 		}
 	}
 	
