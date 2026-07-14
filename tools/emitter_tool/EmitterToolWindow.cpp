@@ -218,7 +218,7 @@ class EmitterToolWindow
 			layer_button.layer_select.set_selected_sub_layer(tool.sub_layer);
 			rotation_wheel.degrees = tool.rotation;
 			id_label.text = tool.emitter_id < 0 ? '-' : tool.emitter_id + '';
-			emitter_id_label.text = '[' + selected_emitters[0].emitter.id() + ']';
+			emitter_id_label.text = '[' + selected_emitters[0].em.id() + ']';
 			
 			selected_layer = data.layer;
 			script.select_layer(selected_layer);

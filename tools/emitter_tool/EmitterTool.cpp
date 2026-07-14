@@ -80,11 +80,6 @@ class EmitterTool : Tool
 	
 	protected void on_editor_unloaded_impl() override
 	{
-		for(int j = 0; j < selected_emitters_count; j++)
-		{
-			selected_emitters[j].pre_step_validate();
-		}
-		
 		select_none();
 		clear_highlighted_emitters();
 		clear_pending_emitters();
@@ -113,11 +108,6 @@ class EmitterTool : Tool
 	{
 		properties_window.update_selected_layer();
 		
-		for(int j = 0; j < selected_emitters_count; j++)
-		{
-			selected_emitters[j].pre_step_validate();
-		}
-		
 		if(mouse.moved)
 		{
 			hover_index_offset = 0;
@@ -144,12 +134,13 @@ class EmitterTool : Tool
 		
 		while(i-- > 0)
 		{
-			entity@ emitter = script.g.get_entity_collision_index(i);
+			entity@ e = script.g.get_entity_collision_index(i);
+			emitter@ em = e.as_emitter();
 			
-			if(!script.editor.check_layer_filter(emitter.layer(), emitter.vars().get_var('draw_depth_sub').get_int32()))
+			if(!script.editor.check_layer_filter(e.layer(), em.sub_layer()))
 				continue;
 			
-			EmitterData@ data = highlight(emitter, i);
+			EmitterData@ data = highlight(e, i);
 			data.update();
 			data.visible = true;
 		}
@@ -226,9 +217,12 @@ class EmitterTool : Tool
 		
 		update_highlighted_emitters();
 		
-		for(int j = 0; j < selected_emitters_count; j++)
+		for(int j = selected_emitters_count - 1; j >= 0; j--)
 		{
-			selected_emitters[j].post_step_validate();
+			if(!selected_emitters[j].post_step_validate())
+			{
+				select_emitter(selected_emitters[j], SelectAction::Remove);
+			}
 		}
 		
 		if(selection_updated)
@@ -426,7 +420,7 @@ class EmitterTool : Tool
 		{
 			for(int i = 0; i < selected_emitters_count; i++)
 			{
-				script.g.remove_entity(selected_emitters[i].emitter);
+				script.g.remove_entity(selected_emitters[i].e);
 			}
 			
 			select_none();
@@ -445,7 +439,7 @@ class EmitterTool : Tool
 				select_emitter(hovered_emitter, SelectAction::Remove);
 			}
 			
-			script.g.remove_entity(hovered_emitter.emitter);
+			script.g.remove_entity(hovered_emitter.e);
 			hovered_emitter.hovered = false;
 			hovered_emitter.is_mouse_inside = 0;
 			@hovered_emitter = null;
@@ -868,13 +862,13 @@ class EmitterTool : Tool
 		const float ox = !drag_centre ? (drag_start_x + mx) * 0.5 : drag_start_x;
 		const float oy = !drag_centre ? (drag_start_y + my) * 0.5 : drag_start_y;
 		
-		entity@ emitter = create_emitter(emitter_id,
+		entity@ emt = create_emitter(emitter_id,
 			ox, oy,
 			ceil_int(abs(lx)), ceil_int(abs(ly)), layer, sub_layer,
 			round_int(rotation));
-		script.g.add_entity(emitter);
+		script.g.add_entity(emt);
 		
-		EmitterData@ data = highlight(emitter, 0);
+		EmitterData@ data = highlight(emt, 0);
 		select_emitter(data, SelectAction::Set, true);
 		data.update();
 		data.visible = true;

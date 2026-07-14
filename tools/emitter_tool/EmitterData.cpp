@@ -4,17 +4,10 @@ class EmitterData : SelectableData
 {
 	
 	EmitterTool@ tool;
-	entity@ emitter;
+	entity@ e;
+	emitter@ em;
 	bool visible;
-	bool modified;
 	bool mouse_over_handle;
-	
-	private varstruct@ vars;
-	private varvalue@ emitter_id_var;
-	private varvalue@ width_var;
-	private varvalue@ height_var;
-	private varvalue@ rotation_var;
-	private varvalue@ sub_layer_var;
 	
 	int emitter_id;
 	int layer, sub_layer;
@@ -30,36 +23,28 @@ class EmitterData : SelectableData
 	private float drag_start_x, drag_start_y;
 	private float drag_start_width, drag_start_height;
 	
-	void init(AdvToolScript@ script, EmitterTool@ tool, entity@ emitter, const int scene_index)
+	void init(AdvToolScript@ script, EmitterTool@ tool, entity@ e, emitter@ em, const int scene_index)
 	{
-		SelectableData::init(script, emitter.id() + '', scene_index);
+		SelectableData::init(script, em.id() + '', scene_index);
 		
 		@this.tool = tool;
-		@this.emitter = emitter;
+		@this.e = e;
+		@this.em = em;
 		
-		@vars = emitter.vars();
-		@emitter_id_var = vars.get_var('emitter_id');
-		@width_var = vars.get_var('width');
-		@height_var = vars.get_var('height');
-		@rotation_var = vars.get_var('e_rotation');
-		@sub_layer_var = vars.get_var('draw_depth_sub');
-		
-		emitter_id = emitter_id_var.get_int32();
-		layer = emitter.layer();
-		sub_layer = sub_layer_var.get_int32();
-		width = width_var.get_int32();
-		height = height_var.get_int32();
-		rotation = rotation_var.get_int32();
+		emitter_id = em.emitter_id();
+		layer = em.layer();
+		sub_layer = em.sub_layer();
+		em.get_size(width, height);
+		rotation = em.rotation();
 		layer_position = tool.script.layer_position(layer);
 		
-		modified = false;
 		mouse_over_handle = false;
 	}
 	
 	void update()
 	{
-		x = emitter.x();
-		y = emitter.y();
+		x = em.x();
+		y = em.y();
 		
 		script.transform(x, y, layer, sub_layer, 22, 22, aabb_x, aabb_y);
 		script.transform_size(width, height, layer, sub_layer, 22, 22, world_size_x, world_size_y);
@@ -84,25 +69,12 @@ class EmitterData : SelectableData
 		aabb_from_rect(world_size_x, world_size_y, rotation * DEG2RAD);
 	}
 	
-	/// Changing an emitter's properties does not reflect in the editor for some reason.
-	/// And simply adding and removing does not seem to work either. At the end of the frame remove the emitter.
-	/// Then at the start of the next, remove it again, and then add it.
-	void pre_step_validate()
+	bool post_step_validate()
 	{
-		if(!modified)
-			return;
+		if(em.destroyed())
+			return false;
 		
-		script.g.remove_entity(emitter);
-		script.g.add_entity(emitter);
-		modified = false;
-	}
-	
-	void post_step_validate()
-	{
-		if(!modified)
-			return;
-		
-		script.g.remove_entity(emitter);
+		return true;
 	}
 	
 	DragHandleType do_handles(DragHandleType current_handle=DragHandleType::None)
@@ -321,7 +293,7 @@ class EmitterData : SelectableData
 		x = drag_start_x + drag_delta_x;
 		y = drag_start_y + drag_delta_y;
 		
-		emitter.set_xy(x, y);
+		em.set_xy(x, y);
 	}
 	
 	void stop_drag(const bool accept)
@@ -331,7 +303,7 @@ class EmitterData : SelectableData
 			x = drag_start_x;
 			y = drag_start_y;
 			
-			emitter.set_xy(x, y);
+			em.set_xy(x, y);
 		}
 	}
 	
@@ -340,7 +312,7 @@ class EmitterData : SelectableData
 		x += dx;
 		y += dy;
 		
-		emitter.set_xy(x, y);
+		em.set_xy(x, y);
 	}
 	
 	// Layer/Sublayer
@@ -350,15 +322,14 @@ class EmitterData : SelectableData
 		if(sub_layer)
 		{
 			this.sub_layer = clamp(this.sub_layer + dir, 0, 24);
-			sub_layer_var.set_int32(this.sub_layer);
+			em.sub_layer(this.sub_layer);
 		}
 		else
 		{
 			layer = clamp(layer + dir, 0, 20);
-			emitter.layer(layer);
+			em.layer(layer);
 		}
 		
-		modified = true;
 		update();
 	}
 	
@@ -377,15 +348,13 @@ class EmitterData : SelectableData
 		width  = abs(w);
 		height = abs(h);
 		
-		width_var.set_int32(ceil_int(width));
-		height_var.set_int32(ceil_int(height));
+		em.size(ceil_int(width), ceil_int(height));
 		
 		x = anchor_x;
 		y = anchor_y;
 		
-		emitter.set_xy(x, y);
+		em.set_xy(x, y);
 		
-		modified = true;
 		update();
 	}
 	
@@ -395,12 +364,10 @@ class EmitterData : SelectableData
 		{
 			width  = drag_start_width;
 			height = drag_start_height;
-			width_var.set_int32(round_int(width));
-			height_var.set_int32(round_int(height));
+			em.size(round_int(width), round_int(height));
 			stop_drag(false);
 		}
 		
-		modified = true;
 		update();
 	}
 	
@@ -414,9 +381,8 @@ class EmitterData : SelectableData
 	void do_rotate(const float rotation)
 	{
 		this.rotation = rotation;
-		rotation_var.set_int32(round_int(this.rotation));
+		em.rotation(round_int(this.rotation));
 		
-		modified = true;
 		update();
 	}
 	
@@ -425,10 +391,9 @@ class EmitterData : SelectableData
 		if(cancel)
 		{
 			rotation = drag_start_width;
-			rotation_var.set_int32(round_int(rotation));
+			em.rotation(round_int(rotation));
 		}
 		
-		modified = true;
 		update();
 	}
 	
@@ -437,47 +402,42 @@ class EmitterData : SelectableData
 	void update_emitter_id(const int id)
 	{
 		emitter_id = id;
-		emitter_id_var.set_int32(emitter_id);
+		em.emitter_id(emitter_id);
 		
-		modified = true;
 		update();
 	}
 	
 	void update_rotation(const float rotation)
 	{
 		this.rotation = rotation;
-		rotation_var.set_int32(round_int(rotation));
+		em.rotation(round_int(rotation));
 		
-		modified = true;
 		update();
 	}
 	
 	void update_layer(const int layer, const int sub_layer)
 	{
 		this.layer = clamp(layer, 0, 20);
-		emitter.layer(this.layer);
+		em.layer(this.layer);
 		this.sub_layer = clamp(sub_layer, 0, 24);
-		sub_layer_var.set_int32(this.sub_layer);
+		em.sub_layer(this.sub_layer);
 		
-		modified = true;
 		update();
 	}
 	
 	void update_layer(const int layer)
 	{
 		this.layer = clamp(layer, 0, 20);
-		emitter.layer(this.layer);
+		em.layer(this.layer);
 		
-		modified = true;
 		update();
 	}
 	
 	void update_sub_layer(const int sub_layer)
 	{
 		this.sub_layer = clamp(sub_layer, 0, 24);
-		sub_layer_var.set_int32(this.sub_layer);
+		em.sub_layer(this.sub_layer);
 		
-		modified = true;
 		update();
 	}
 	
