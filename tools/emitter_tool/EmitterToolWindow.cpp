@@ -5,6 +5,7 @@
 #include '../../../../lib/ui3/elements/Select.cpp';
 #include '../../../../lib/ui3/elements/Window.cpp';
 
+#include '../../undo/UndoEmitterId.cpp';
 #include '../../undo/UndoEmitterLayer.cpp';
 #include '../../undo/UndoEntityRotation.cpp';
 #include 'EmitterIdData.cpp';
@@ -433,9 +434,16 @@ class EmitterToolWindow
 	{
 		tool.emitter_id = id;
 		
+		UndoEmitterId@ undo = UndoEmitterId();
+		script.undo.add(undo);
+		script.undo.finished();
+		
 		for(int i = 0; i < selected_emitters_count; i++)
 		{
-			selected_emitters[i].update_emitter_id(id);
+			EmitterData@ data = selected_emitters[i];
+			undo.add(data.em, data.emitter_id, id);
+			
+			data.update_emitter_id(id);
 		}
 		
 		update_selection();
