@@ -5,6 +5,7 @@
 #include '../../../../lib/ui3/elements/Select.cpp';
 #include '../../../../lib/ui3/elements/Window.cpp';
 
+#include '../../undo/UndoEntityRotation.cpp';
 #include 'EmitterIdData.cpp';
 
 class EmitterToolWindow
@@ -31,6 +32,8 @@ class EmitterToolWindow
 	private int selected_emitters_count;
 	
 	private int selected_layer;
+	
+	private UndoEntityRotation@ rotate_action;
 	
 	private void create_ui()
 	{
@@ -177,11 +180,25 @@ class EmitterToolWindow
 		window.show();
 	}
 	
+	void reset()
+	{
+		@rotate_action = null;
+	}
+	
 	void hide()
 	{
 		window.hide();
 		
 		selected_emitters_count = 0;
+	}
+	
+	void on_selection_changed()
+	{
+		if(@rotate_action != null)
+		{
+			@rotate_action = null;
+			script.undo.finished();
+		}
 	}
 	
 	void update_selection(const array<EmitterData@>@ selected_emitters, const int selected_emitters_count)
@@ -472,9 +489,24 @@ class EmitterToolWindow
 	{
 		tool.rotation = rotation_wheel.degrees;
 		
+		UndoEntityRotation@ last = cast<UndoEntityRotation@>(script.undo.active_script_action());
+		if (@rotate_action == null || @last != @rotate_action)
+		{
+			@rotate_action = UndoEntityRotation(script);
+			script.undo.add(@rotate_action);
+			script.undo.finished(false);
+			
+			for(int i = 0; i < selected_emitters_count; i++)
+			{
+				EmitterData@ data = selected_emitters[i];
+				rotate_action.add(data.e, data.rotation, data.rotation);
+			}
+		}
+		
 		for(int i = 0; i < selected_emitters_count; i++)
 		{
 			selected_emitters[i].update_rotation(tool.rotation);
+			rotate_action.update(i, tool.rotation);
 		}
 		
 		update_selection();

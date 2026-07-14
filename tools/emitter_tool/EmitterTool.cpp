@@ -121,6 +121,8 @@ class EmitterTool : Tool
 		
 		@delete_action = null;
 		@shift_action = null;
+		
+		properties_window.reset();
 	}
 	
 	protected void step_impl() override
@@ -246,6 +248,7 @@ class EmitterTool : Tool
 		
 		if(selection_updated)
 		{
+			properties_window.on_selection_changed();
 			properties_window.update_selection(selected_emitters, selected_emitters_count);
 			selection_updated = false;
 		}

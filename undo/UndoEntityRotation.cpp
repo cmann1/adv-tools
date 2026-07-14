@@ -20,6 +20,17 @@ class UndoEntityRotation : callback_base
 		next.insertLast(UndoEntityRotationData(rotation_next, x_next, y_next));
 	}
 	
+	void update(int i, float rotation, float x = NAN, float y = NAN)
+	{
+		UndoEntityRotationData@ data = @next[i];
+		data.rotation = rotation;
+		if(!is_nan(x))
+		{
+			data.x = x;
+			data.y = y;
+		}
+	}
+	
 	void undo()
 	{
 		for(uint i = 0; i < entities.length; i++)
