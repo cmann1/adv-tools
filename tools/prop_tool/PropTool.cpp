@@ -5,6 +5,10 @@
 #include '../../../../lib/props/data.cpp';
 #include '../../../../lib/props/outlines.cpp';
 
+#include '../../undo/UndoProp.cpp';
+#include '../../undo/UndoPropAdd.cpp';
+#include '../../undo/UndoPropLayer.cpp';
+#include '../../undo/UndoPropPalette.cpp';
 #include 'PropToolSettings.cpp';
 #include 'PropToolState.cpp';
 #include 'PropSortingData.cpp';
@@ -14,10 +18,6 @@
 #include 'PropsClipboardData.cpp';
 #include 'PropExportType.cpp';
 #include 'PropToolExporter.cpp';
-#include 'UndoProp.cpp';
-#include 'UndoPropAdd.cpp';
-#include 'UndoPropLayer.cpp';
-#include 'UndoPropPalette.cpp';
 
 const string PROP_TOOL_SPRITES_BASE = SPRITES_BASE + 'prop_tool/';
 const string EMBED_spr_icon_prop_tool = SPRITES_BASE + 'icon_prop_tool.png';

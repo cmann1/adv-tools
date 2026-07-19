@@ -3,7 +3,7 @@
 #include '../../../../lib/props/common.cpp';
 #include '../../../../lib/string/common.cpp';
 
-#include '../prop_tool/UndoPropAdd.cpp';
+#include '../../undo/UndoPropAdd.cpp';
 #include 'PropLineProp.cpp';
 #include 'PropLineRotationMode.cpp';
 #include 'PropLineRotationOffsets.cpp';
