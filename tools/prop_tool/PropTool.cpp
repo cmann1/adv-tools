@@ -2367,13 +2367,22 @@ class PropTool : Tool
 		const float anchor_x = has_custom_anchor ? custom_anchor_x : selection_x;
 		const float anchor_y = has_custom_anchor ? custom_anchor_y : selection_y;
 		
+		UndoProp @undo = UndoProp(this, @selected_props, selected_props_count, true, true);
+		bool changed = false;
+		
 		for(int i = 0; i < selected_props_count; i++)
 		{
 			PropData@ data = @selected_props[i];
 			prop@ p = data.prop;
 			
+			float start_rotation = p.rotation();
+			float start_scale_x = p.scale_x();
+			float start_scale_y = p.scale_y();
+			float start_x = p.x();
+			float start_y = p.y();
+			
 			data.anchor_world(anchor_x, anchor_y);
-			data.set_prop_rotation(round(p.rotation()));
+			data.set_prop_rotation(round(start_rotation));
 			data.update();
 			data.init_anchors();
 			
@@ -2383,16 +2392,31 @@ class PropTool : Tool
 			//	get_valid_prop_scale(abs(p.scale_y())),
 			//	get_valid_prop_scale(abs(p.scale_y())) / abs(p.scale_y()) );
 			data.do_scale(
-				get_valid_prop_scale(abs(p.scale_x())) / abs(p.scale_x()),
-				get_valid_prop_scale(abs(p.scale_y())) / abs(p.scale_y())
+				get_valid_prop_scale(abs(start_scale_x)) / abs(start_scale_x),
+				get_valid_prop_scale(abs(start_scale_y)) / abs(start_scale_y)
 			);
 			data.stop_scale(false);
 			
-			p.x(round(p.x()));
-			p.y(round(p.y()));
+			p.x(round(start_x));
+			p.y(round(start_y));
+			
+			if(!changed && (
+				start_rotation != p.rotation() || start_scale_x != p.scale_x() || start_scale_y != p.scale_y() ||
+				start_x != p.x() || start_y != p.y()
+			))
+			{
+				changed = true;
+			}
 			
 			data.update(true);
 			data.init_anchors();
+		}
+		
+		if(changed)
+		{
+			undo.update(@selected_props, selected_props_count);
+			script.undo.add(@undo);
+			script.undo.finished();
 		}
 		
 		selection_angle = 0;
