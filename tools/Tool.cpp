@@ -259,6 +259,8 @@ class Tool
 		
 	}
 	
+	void on_undo(bool is_undo) { }
+	
 	void step() final
 	{
 		step_impl();

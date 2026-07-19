@@ -5,6 +5,7 @@
 #include '../../../../lib/tiles/EdgeFlags.cpp';
 #include '../../../../lib/tiles/TileEdge.cpp';
 
+#include '../../undo/UndoTile.cpp';
 #include 'EdgeBrushMode.cpp';
 #include 'EdgeBrushRenderMode.cpp';
 #include 'EdgeBrushState.cpp';
@@ -15,7 +16,7 @@
 const string EDGE_BRUSH_SPRITES_BASE = SPRITES_BASE + 'edge_brush/';
 const string EMBED_spr_icon_edge_brush = SPRITES_BASE + 'icon_edge_brush.png';
 
-class EdgeBrushTool : Tool
+class EdgeBrushTool : Tool, callback_base
 {
 	
 	private EdgeBrushState state = Idle;
@@ -70,6 +71,8 @@ class EdgeBrushTool : Tool
 	bool precision_update_neighbour = true;
 	EdgeBrushRenderMode render_mode = Always;
 	
+	UndoTile@ tile_action;
+	
 	private bool is_layer_valid { get const { return layer >= 6 && layer <= 20; } }
 	
 	EdgeBrushTool(AdvToolScript@ script)
@@ -95,6 +98,12 @@ class EdgeBrushTool : Tool
 	void on_init() override
 	{
 		@mouse = @script.mouse;
+		//script.undo.on_undo_callback(this, 'on_undo');
+	}
+	
+	void on_undo(bool is_undo) override
+	{
+		clear_tile_cache();
 	}
 	
 	void update_mode(const EdgeBrushMode new_mode, const bool notify=true)
@@ -280,6 +289,11 @@ class EdgeBrushTool : Tool
 	// Callbacks
 	// //////////////////////////////////////////////////////////
 	
+	protected void on_editor_unloaded_impl() override
+	{
+		reset();
+	}
+	
 	protected void on_select_impl()
 	{
 		script.hide_gui_panels(true);
@@ -296,6 +310,13 @@ class EdgeBrushTool : Tool
 		@precision_edge = null;
 		clear_tile_cache();
 		toolbar.hide();
+		
+		reset();
+	}
+	
+	protected void reset()
+	{
+		@tile_action = null;
 	}
 	
 	protected void step_impl() override
@@ -449,6 +470,27 @@ class EdgeBrushTool : Tool
 			clr);
 	}
 	
+	private void start_undo()
+	{
+		if (@tile_action == null)
+		{
+			@tile_action = UndoTile(script, layer);
+		}
+	}
+	
+	private void push_undo()
+	{
+		if(@tile_action == null)
+			return;
+		
+		if(!tile_action.is_empty())
+		{
+			script.undo.add(@tile_action);
+			script.undo.finished();
+		}
+		@tile_action = null;
+	}
+	
 	// //////////////////////////////////////////////////////////
 	// States
 	// //////////////////////////////////////////////////////////
@@ -562,6 +604,7 @@ class EdgeBrushTool : Tool
 		
 		if(draw_mode == 1 && !mouse.left_down || draw_mode == -1 && !mouse.right_down)
 		{
+			push_undo();
 			state = Idle;
 			return;
 		}
@@ -573,6 +616,7 @@ class EdgeBrushTool : Tool
 		
 		if(draw_mode == 1 && !mouse.left_down || draw_mode == -1 && !mouse.right_down)
 		{
+			push_undo();
 			state = Idle;
 			return;
 		}
@@ -598,6 +642,11 @@ class EdgeBrushTool : Tool
 	{
 		if(!is_layer_valid)
 			return;
+		
+		if(update_edges != 0)
+		{
+			start_undo();
+		}
 		
 		const bool render_edges = render_mode == Always || render_mode == DrawOnly && update_edges != 0;
 		const bool reset_edges = update_edges == 1 && script.ctrl.down;
@@ -671,12 +720,9 @@ class EdgeBrushTool : Tool
 								continue;
 							
 							if(
+								reset_edges ||
 								update_edges != 0 && (data.updated_edges & (1 << edge)) == 0 &&
 								data.update_edge(edge, update_edges, update_collision, update_priority, update_custom))
-							{
-								tile_requires_update = true;
-							}
-							else if(reset_edges)
 							{
 								tile_requires_update = true;
 							}
@@ -700,14 +746,22 @@ class EdgeBrushTool : Tool
 						
 						if(tile_requires_update)
 						{
+							bool has_changed = !reset_edges;
+							
 							script.g.set_tile(tx, ty, layer, data.tile, reset_edges);
 							
-							// Query the tile properties again since the properties might have changed
+							// Query the tile properties again since they might have changed
 							// after being updated
 							if(reset_edges && !data.has_reset)
 							{
-								data.init(script.g, tx, ty, layer, edge_mask, check_internal_sprites);
+								const bool changed = data.init(script.g, tx, ty, layer, edge_mask, check_internal_sprites);
+								has_changed = has_changed || changed;
 								data.has_reset = true;
+							}
+							
+							if(has_changed)
+							{
+								tile_action.add(tx, ty, data.tile_previous, data.tile);
 							}
 							
 							if(Settings::EdgeBrushDebugTiming)
@@ -740,6 +794,11 @@ class EdgeBrushTool : Tool
 	{
 		if(!is_layer_valid)
 			return;
+		
+		if(update_edges != 0)
+		{
+			start_undo();
+		}
 		
 		const bool render_edges = (render_mode == Always || script.shift.down) || render_mode == DrawOnly && update_edges != 0;
 		
@@ -845,28 +904,49 @@ class EdgeBrushTool : Tool
 			}
 		}
 		
+		if(update_edges != 0)
+		{
+			@closest_data.tile_previous = closest_data.tile.copy();
+		}
+		
 		if(
 			update_edges != 0 &&
 			closest_data.update_edge(closest_edge, update_edges, update_collision, update_priority, update_custom))
 		{
+			bool do_neighbour_update =
+				precision_update_neighbour &&
+				closest_data.edge & (Priority | Collision) != 0;
+			
+			int neighbor_tx, neighbor_ty;
+			tileinfo@ neightbour_tile;
+			
+			if(do_neighbour_update)
+			{
+				edge_adjacent_tile(closest_edge, closest_tx, closest_ty, neighbor_tx, neighbor_ty);
+				@neightbour_tile = script.g.get_tile(neighbor_tx, neighbor_ty, layer);
+			}
+			
+			
 			script.g.set_tile(closest_tx, closest_ty, layer, closest_data.tile, false);
+			tile_action.add_or_update(closest_tx, closest_ty, closest_data.tile_previous, closest_data.tile);
 			
 			// Turn off the neighbouring edge
-			if(
-				precision_update_neighbour &&
-				closest_data.edge & (Priority | Collision) != 0)
+			if(do_neighbour_update)
 			{
-				int neighbor_tx, neighbor_ty;
 				const int neighbor_edge = opposite_tile_edge(closest_edge);
-				edge_adjacent_tile(closest_edge, closest_tx, closest_ty, neighbor_tx, neighbor_ty);
-				tileinfo@ neightbour_tile = script.g.get_tile(neighbor_tx, neighbor_ty, layer);
 				
 				if(is_full_edge(neightbour_tile.type(), neighbor_edge) && neightbour_tile.solid())
 				{
 					uint8 neightbour_edge_bits = get_tile_edge(neightbour_tile, neighbor_edge);
+					uint8 neightbour_edge_bits_previous = neightbour_edge_bits;
 					neightbour_edge_bits &= ~(Priority | Collision);
-					set_tile_edge(neightbour_tile, neighbor_edge, neightbour_edge_bits);
-					script.g.set_tile(neighbor_tx, neighbor_ty, layer, neightbour_tile, false);
+					if(neightbour_edge_bits_previous != neightbour_edge_bits)
+					{
+						tileinfo@ neightbour_tile_previous = neightbour_tile.copy();
+						set_tile_edge(neightbour_tile, neighbor_edge, neightbour_edge_bits);
+						script.g.set_tile(neighbor_tx, neighbor_ty, layer, neightbour_tile, false);
+						tile_action.add_or_update(neighbor_tx, neighbor_ty, neightbour_tile_previous, neightbour_tile);
+					}
 				}
 			}
 		}

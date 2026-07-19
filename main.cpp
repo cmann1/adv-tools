@@ -59,7 +59,7 @@ const string SPRITE_SET = AS_EDITOR_PLUGIN ? 'plugin' : 'script';
 
 class script : AdvToolScript {}
 
-class AdvToolScript
+class AdvToolScript : callback_base
 {
 	
 	scene@ g = get_scene();
@@ -177,6 +177,9 @@ class AdvToolScript
 	AdvToolScript()
 	{
 		puts('>> Initialising AdvTools');
+		
+		undo.add_undo_callback(this, 'on_undo');
+		
 		@cam = get_active_camera();
 		
 		@ui = UI(true);
@@ -246,6 +249,8 @@ class AdvToolScript
 		editor.hide_gui(false);
 		editor.hide_panels_gui(false);
 		editor.hide_layers_gui(false);
+		
+		undo.finished();
 	}
 	
 	void build_sprites(message@ msg)
@@ -732,6 +737,14 @@ class AdvToolScript
 		}
 		
 		debug.draw(sub_frame);
+	}
+	
+	void on_undo(bool is_undo)
+	{
+		if(@selected_tool != null)
+		{
+			selected_tool.on_undo(is_undo);
+		}
 	}
 	
 	// //////////////////////////////////////////////////////////

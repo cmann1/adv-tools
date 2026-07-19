@@ -1,9 +1,11 @@
 class TileEdgeData
 {
 	
+	tileinfo@ tile_previous;
 	tileinfo@ tile;
 	int type;
 	bool solid;
+	bool initialised;
 	uint8 edge_top;
 	uint8 edge_bottom;
 	uint8 edge_left;
@@ -31,21 +33,34 @@ class TileEdgeData
 	
 	uint8 edges_facing;
 	
-	void init(scene@ g, const int tx, const int ty, const int layer,
+	bool init(scene@ g, const int tx, const int ty, const int layer,
 		const uint edge_mask, const bool check_internal_sprites,
 		const bool update_vertices=true)
 	{
 		@tile = g.get_tile(tx, ty, layer);
 		solid = tile.solid();
-
+		
 		if(!solid)
-			return;
-
+			return false;
+		
 		type = tile.type();
-		edge_top = tile.edge_top();
-		edge_bottom = tile.edge_bottom();
-		edge_left = tile.edge_left();
-		edge_right = tile.edge_right();
+		uint new_edge_top = tile.edge_top();
+		uint new_edge_bottom = tile.edge_bottom();
+		uint new_edge_left = tile.edge_left();
+		uint new_edge_right = tile.edge_right();
+		
+		if(@tile_previous == null && @tile != null)
+		{
+			@tile_previous = tile.copy();
+		}
+		
+		const bool has_changed = !initialised ||
+			edge_top != new_edge_top || edge_bottom != new_edge_bottom ||
+			edge_left != new_edge_left || edge_right != new_edge_right;
+		edge_top = new_edge_top;
+		edge_bottom = new_edge_bottom;
+		edge_left = new_edge_left;
+		edge_right = new_edge_right;
 		
 		valid_edges = edge_mask & (
 			(is_valid_edge(type, TileEdge::Top) ? 0x1 : 0) |
@@ -71,6 +86,14 @@ class TileEdgeData
 			x3 += x; y3 += y;
 			x4 += x; y4 += y;
 		}
+		
+		if(!initialised)
+		{
+			initialised = true;
+			return true;
+		}
+		
+		return has_changed;
 	}
 	
 	void select_edge(const int edge)
